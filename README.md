@@ -140,7 +140,7 @@ As our plugin is a Python script and the protoc plugin should be an executable, 
 After running protoc without errors, the generated source code is located in the folder specified by -eams_out. You have to include two folders in your toolchain:
 * The folder you specified with -eams_out, and
 * The source code of Embedded Proto is located in EmbeddedProto/src. 
-* When building do not for get to pass `-lstdc++` to my linker. This to prevent erros like: `undefined reference to`.
+* When building do not for get to pass `-lstdc++` to the linker. This to prevent errors like: `undefined reference to`.
 
 
 # Examples 
