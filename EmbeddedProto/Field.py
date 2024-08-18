@@ -157,7 +157,7 @@ class Field:
 class FieldBasic(Field):
     # A dictionary to convert the wire type into a default value.
     type_to_default_value = {FieldDescriptorProto.TYPE_DOUBLE:   "0.0",
-                             FieldDescriptorProto.TYPE_FLOAT:    "0.0",
+                             FieldDescriptorProto.TYPE_FLOAT:    "0.0f",
                              FieldDescriptorProto.TYPE_INT64:    "0",
                              FieldDescriptorProto.TYPE_UINT64:   "0U",
                              FieldDescriptorProto.TYPE_INT32:    "0",
