@@ -116,7 +116,7 @@ void helper_test(const BASE_TYPE max)
 void helper_set_most_consuming_value(Test_Simple_Types& msg)
 {
   msg.set_a_int32(std::numeric_limits<int32_t>::max());  
-  msg.set_a_int64(-9223372036854775808);     
+  msg.set_a_int64(-9223372036854775807);     
   msg.set_a_uint32(std::numeric_limits<uint32_t>::max());    
   msg.set_a_uint64(std::numeric_limits<uint64_t>::max());
   msg.set_a_sint32(std::numeric_limits<int32_t>::max());
@@ -136,7 +136,7 @@ void helper_set_most_consuming_value(Test_Simple_Types& msg)
 TEST(MaxFieldSize, SimpleTypesMsg_max_serialized_size)
 {
   helper_test<EmbeddedProto::int32, int32_t>(2147483647);
-  helper_test<EmbeddedProto::int64, int64_t>(-9223372036854775808);
+  helper_test<EmbeddedProto::int64, int64_t>(-9223372036854775807);
   helper_test<EmbeddedProto::uint32, uint32_t>(4294967295);
   helper_test<EmbeddedProto::uint64, uint64_t>(18446744073709551615ull);
   helper_test<EmbeddedProto::sint32, int32_t>(2147483647);
