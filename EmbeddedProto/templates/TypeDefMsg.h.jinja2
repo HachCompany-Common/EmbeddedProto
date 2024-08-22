@@ -37,6 +37,9 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
     {{ typedef.get_name() }}() = default;
     {{ typedef.get_name() }}(const {{typedef.get_name()}}& rhs )
     {
+      {% if typedef.fields|length == 0 and typedef.oneofs|length == 0%}
+      (void)rhs; // Empty message thus unused. 
+      {% endif %}
       {% for field in typedef.fields %}
       {% if typedef.optional_fields is defined and field in typedef.optional_fields %}
       if(rhs.has_{{field.get_name()}}())
@@ -59,6 +62,9 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
 
     {{ typedef.get_name() }}(const {{typedef.get_name()}}&& rhs ) noexcept
     {
+      {% if typedef.fields|length == 0 and typedef.oneofs|length == 0%}
+      (void)rhs; // Empty message thus unused. 
+      {% endif %}
       {% for field in typedef.fields %}
       {% if typedef.optional_fields is defined and field in typedef.optional_fields %}
       if(rhs.has_{{field.get_name()}}())
@@ -99,6 +105,9 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
 
     {{ typedef.name }}& operator=(const {{ typedef.name }}& rhs)
     {
+      {% if typedef.fields|length == 0 and typedef.oneofs|length == 0%}
+      (void)rhs; // Empty message thus unused. 
+      {% endif %}      
       {% for field in typedef.fields %}
       {% if typedef.optional_fields is defined and field in typedef.optional_fields %}
       if(rhs.has_{{field.get_name()}}())
@@ -122,6 +131,9 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
 
     {{ typedef.name }}& operator=(const {{ typedef.name }}&& rhs) noexcept
     {
+      {% if typedef.fields|length == 0 and typedef.oneofs|length == 0%}
+      (void)rhs; // Empty message thus unused. 
+      {% endif %}      
       {% for field in typedef.fields %}
       {% if typedef.optional_fields is defined and field in typedef.optional_fields %}
       if(rhs.has_{{field.get_name()}}())
@@ -158,6 +170,9 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
 
     ::EmbeddedProto::Error serialize(::EmbeddedProto::WriteBufferInterface& buffer) const override
     {
+      {% if typedef.fields|length == 0 and typedef.oneofs|length == 0%}
+      (void)buffer; // Empty message thus unused. 
+      {% endif %}
       ::EmbeddedProto::Error return_value = ::EmbeddedProto::Error::NO_ERRORS;
 
       {% for field in typedef.fields %}
