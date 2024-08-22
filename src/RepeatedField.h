@@ -149,6 +149,8 @@ namespace EmbeddedProto
       Error serialize(WriteBufferInterface& buffer) const final
       {
         // This function should not be called on a repeated field.
+        // Suppress the unused parameter warning.
+        (void)buffer;
         return Error::BUFFER_FULL;
       };
 
