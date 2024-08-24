@@ -1,5 +1,6 @@
 [project]
 name = "EmbeddedProto"
+dynamic = ["version"]
 authors = [
     {name = "Embedded AMS B.V.", email = "info@embeddedproto.com"},
 ]
@@ -15,7 +16,6 @@ dependencies = [
     "six>=1.16.0,<2",
     "toposort>=1.7,<2",
 ]
-version = "4.0.0"
 
 [tool.setuptools.packages.find]
 where = ["."]

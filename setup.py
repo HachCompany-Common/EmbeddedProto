@@ -35,6 +35,7 @@ from setuptools.command.sdist import sdist
 from setuptools import setup
 import subprocess
 import os
+import json
 
 
 def build_proto():
@@ -62,10 +63,22 @@ class Sdist(sdist):
         build_proto()
         super().run()
 
+def get_version():
+    version_file = 'version.json'
+    build_number = os.getenv('GITHUB_RUN_NUMBER', '0')
+
+    with open(version_file, 'r') as f:
+        version_data = json.load(f)
+
+    base_version = version_data.get('version', '0.0.0')
+    full_version = f"{base_version}.dev{build_number}"
+    return full_version
+
 
 setup(
     cmdclass={
         "editable_wheel": EditableWheel,
         "sdist": Sdist,
     },
+    version=get_version(),
 )
