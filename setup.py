@@ -64,7 +64,7 @@ class Sdist(sdist):
         super().run()
 
 def get_version():
-    version_file = 'version.json'
+    version_file = 'EmbeddedProto/version.json'
     build_number = os.getenv('GITHUB_RUN_NUMBER', '0')
 
     with open(version_file, 'r') as f:

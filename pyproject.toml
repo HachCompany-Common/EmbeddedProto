@@ -25,7 +25,7 @@ include = ["EmbeddedProto*"]
 protoc-gen-eams = "EmbeddedProto.main:main_plugin"
 
 [tool.setuptools.package-data]
-EmbeddedProto = ["templates/*"]
+EmbeddedProto = ["templates/*", "version.json"]
 
 [build-system]
 requires = ["setuptools>=64"]

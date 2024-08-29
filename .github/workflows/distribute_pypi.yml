@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'develop-v4'
+      - 'feature/**'
 
 jobs:
   build:
@@ -11,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        protoc-version: ["25.x"]
+        protoc-version: ["27.x"]
 
     steps:
     - uses: actions/checkout@v4
