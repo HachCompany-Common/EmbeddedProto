@@ -33,24 +33,21 @@ from setuptools.command.build import build
 from setuptools.command.editable_wheel import editable_wheel
 from setuptools.command.sdist import sdist
 from setuptools import setup
-import subprocess
 import os
 import json
-
+import grpc_tools.protoc as protoc
 
 def build_proto():
-    command = [
-        "protoc",
-        "-I",
-        "./EmbeddedProto",
+    argv = [
+        "-I./EmbeddedProto",
         "--python_out=EmbeddedProto",
         "embedded_proto_options.proto",
     ]
 
     if "EMBEDDEDPROTO_PROTOC_INCLUDE" in os.environ:
-        command.extend(["-I", os.environ["EMBEDDEDPROTO_PROTOC_INCLUDE"]])
+        argv.extend(["-I", os.environ["EMBEDDEDPROTO_PROTOC_INCLUDE"]])
 
-    subprocess.run(command, check=True)
+    protoc.main(argv)
 
 class EditableWheel(editable_wheel):
     def run(self):

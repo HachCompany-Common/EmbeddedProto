@@ -29,6 +29,6 @@ embeddedproto = "EmbeddedProto.EmbeddedProto:run_protoc"
 EmbeddedProto = ["templates/*", "version.json"]
 
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=64", "grpcio-tools==1.66.0"]
 build-backend = "setuptools.build_meta"
 
