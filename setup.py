@@ -33,21 +33,40 @@ from setuptools.command.build import build
 from setuptools.command.editable_wheel import editable_wheel
 from setuptools.command.sdist import sdist
 from setuptools import setup
+import subprocess
 import os
 import json
-import grpc_tools.protoc as protoc
+import sys
+from importlib import resources
+
+
+def _get_resource_file_name(package_or_requirement: str, resource_name: str) -> str:
+    # Obtain the filename for a resource on the file system.
+    file_name = (
+        resources.files(package_or_requirement) / resource_name
+    ).resolve()
+    return str(file_name)
+
 
 def build_proto():
-    argv = [
+
+    resource_path = _get_resource_file_name('grpc_tools', '_proto')
+     
+    command = [
+        "python3",
+        "-m",
+        "grpc_tools.protoc",
+        "-I" + resource_path,
         "-I./EmbeddedProto",
         "--python_out=EmbeddedProto",
         "embedded_proto_options.proto",
     ]
 
     if "EMBEDDEDPROTO_PROTOC_INCLUDE" in os.environ:
-        argv.extend(["-I", os.environ["EMBEDDEDPROTO_PROTOC_INCLUDE"]])
+        command.extend(["-I", os.environ["EMBEDDEDPROTO_PROTOC_INCLUDE"]])
 
-    protoc.main(argv)
+    subprocess.run(command, check=True)
+
 
 class EditableWheel(editable_wheel):
     def run(self):
