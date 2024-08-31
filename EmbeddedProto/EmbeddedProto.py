@@ -35,9 +35,9 @@ import grpc_tools.protoc as protoc
 def run_protoc(argv=sys.argv):
     # Remove the program name
     argv.pop(0)
-    
+
     # Check if a plugin is included
-    if not [x for x in argv if x.startswith('--plugin')]:
+    if not [x for x in argv if x.startswith("--plugin")]:
         # If not add the EmbeddedProto plugin
         argv.insert(0, "--plugin=protoc-gen-eams")
 
