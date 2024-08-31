@@ -30,11 +30,24 @@
 
 import sys
 import grpc_tools.protoc as protoc
+from importlib import resources
+
+
+def get_well_known_types_location():
+    # Obtain the location of the Protobuf well known types, they are a resource
+    # to the grpc-tools package the file system.
+    file_name = (
+        resources.files("grpc_tools") / "_proto"
+    ).resolve()
+    return str(file_name)
 
 
 def run_protoc(argv=sys.argv):
     # Remove the program name
     argv.pop(0)
+
+    # Check if the well known types should be included.
+    argv = ["-I" + get_well_known_types_location() if x == "--IncludeWellKnownTypes" else x for x in argv]
 
     # Check if a plugin is included
     if not [x for x in argv if x.startswith("--plugin")]:
