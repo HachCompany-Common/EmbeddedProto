@@ -37,33 +37,18 @@ import subprocess
 import os
 import json
 import sys
-from importlib import resources
-
-
-def _get_resource_file_name(package_or_requirement: str, resource_name: str) -> str:
-    # Obtain the filename for a resource on the file system.
-    file_name = (
-        resources.files(package_or_requirement) / resource_name
-    ).resolve()
-    return str(file_name)
 
 
 def build_proto():
 
-    resource_path = _get_resource_file_name('grpc_tools', '_proto')
-     
     command = [
         "python3",
         "-m",
         "grpc_tools.protoc",
-        "-I" + resource_path,
         "-I./EmbeddedProto",
         "--python_out=EmbeddedProto",
         "embedded_proto_options.proto",
     ]
-
-    if "EMBEDDEDPROTO_PROTOC_INCLUDE" in os.environ:
-        command.extend(["-I", os.environ["EMBEDDEDPROTO_PROTOC_INCLUDE"]])
 
     subprocess.run(command, check=True)
 
