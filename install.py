@@ -57,6 +57,8 @@ def clean_folder():
     shutil.rmtree("./venv", ignore_errors=True)
     shutil.rmtree("./build", ignore_errors=True)
     shutil.rmtree("./EmbeddedProto.egg-info", ignore_errors=True)
+    shutil.rmtree("./dist", ignore_errors=True) 
+    shutil.rmtree("./generator", ignore_errors=True) # Remove remainders of version 3.
     try:
         os.remove("./EmbeddedProto/embedded_proto_options_pb2.py")
     except FileNotFoundError:
