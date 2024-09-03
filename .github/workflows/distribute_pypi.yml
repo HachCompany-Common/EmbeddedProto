@@ -38,7 +38,7 @@ jobs:
 
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/EmbeddedProto
+      url: https://pypi.org/p/EmbeddedProto
 
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
