@@ -50,7 +50,7 @@ foreach(PROTO_FILE ${PROTO_FILES})
     get_filename_component(PROTO_FILE_NAME ${PROTO_FILE} NAME_WE)
     add_custom_command(
         OUTPUT ${PROTO_GEN_DIR}/${PROTO_FILE_NAME}.h
-        COMMAND protoc --plugin=protoc-gen-eams=${CMAKE_SOURCE_DIR}/protoc-gen-eams -I${CMAKE_SOURCE_DIR}/EmbeddedProto -I${CMAKE_SOURCE_DIR}/test/proto --eams_out=${PROTO_GEN_DIR} ${PROTO_FILE}
+        COMMAND ${CMAKE_SOURCE_DIR}/venv/bin/python3 -m grpc_tools.protoc --plugin=protoc-gen-eams=${CMAKE_SOURCE_DIR}/protoc-gen-eams -I${CMAKE_SOURCE_DIR}/EmbeddedProto -I${CMAKE_SOURCE_DIR}/test/proto --eams_out=${PROTO_GEN_DIR} ${PROTO_FILE}
         DEPENDS ${PROTO_FILE} ${TEMPLATE_FILES}
         COMMENT "Running EAMS plugin on ${PROTO_FILE}"
         VERBATIM
@@ -73,7 +73,7 @@ foreach(PROTO_FILE ${PROTO_FILES})
     get_filename_component(PROTO_FILE_NAME ${PROTO_FILE} NAME_WE)
     add_custom_command(
         OUTPUT ${PROTO_GEN_PYTHON_DIR}/${PROTO_FILE_NAME}_pb2.py
-        COMMAND protoc -I${CMAKE_SOURCE_DIR}/test/proto -I${CMAKE_SOURCE_DIR}/EmbeddedProto --python_out=${PROTO_GEN_PYTHON_DIR} ${PROTO_FILE}
+        COMMAND ${CMAKE_SOURCE_DIR}/venv/bin/python3 -m grpc_tools.protoc -I${CMAKE_SOURCE_DIR}/test/proto -I${CMAKE_SOURCE_DIR}/EmbeddedProto --python_out=${PROTO_GEN_PYTHON_DIR} ${PROTO_FILE}
         DEPENDS ${PROTO_FILE} ${TEMPLATE_FILES}
         COMMENT "Generating python code for ${PROTO_FILE}"
         VERBATIM

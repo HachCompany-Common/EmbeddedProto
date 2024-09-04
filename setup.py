@@ -36,21 +36,22 @@ from setuptools import setup
 import subprocess
 import os
 import json
+import sys
 
 
 def build_proto():
+
     command = [
-        "protoc",
-        "-I",
-        "./EmbeddedProto",
+        "python3",
+        "-m",
+        "grpc_tools.protoc",
+        "-I./EmbeddedProto",
         "--python_out=EmbeddedProto",
         "embedded_proto_options.proto",
     ]
 
-    if "EMBEDDEDPROTO_PROTOC_INCLUDE" in os.environ:
-        command.extend(["-I", os.environ["EMBEDDEDPROTO_PROTOC_INCLUDE"]])
-
     subprocess.run(command, check=True)
+
 
 class EditableWheel(editable_wheel):
     def run(self):

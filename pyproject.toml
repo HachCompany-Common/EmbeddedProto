@@ -2,19 +2,20 @@
 name = "EmbeddedProto"
 dynamic = ["version"]
 authors = [
-    {name = "Embedded AMS B.V.", email = "info@embeddedproto.com"},
+    {name = "Embedded AMS B.V.", email = "info@EmbeddedAMS.nl"},
 ]
 description = "EmbeddedProto generator"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "GPL-3.0-only"}
+license = {text = "GPL-3.0 for Open Source projects, a Property license for Commercial companies."}
 classifiers = [ ]
 dependencies = [
     "Jinja2>=3,<4",
     "MarkupSafe>=2.0,<3",
-    "protobuf>=5.27.1,<6",
     "six>=1.16.0,<2",
     "toposort>=1.7,<2",
+    "protobuf==5.27.2",
+    "grpcio-tools==1.66.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -23,11 +24,12 @@ include = ["EmbeddedProto*"]
 
 [project.scripts]
 protoc-gen-eams = "EmbeddedProto.main:main_plugin"
+embeddedproto = "EmbeddedProto.EmbeddedProto:run_protoc"
 
 [tool.setuptools.package-data]
 EmbeddedProto = ["templates/*", "version.json"]
 
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=64", "grpcio-tools==1.66.0"]
 build-backend = "setuptools.build_meta"
 
