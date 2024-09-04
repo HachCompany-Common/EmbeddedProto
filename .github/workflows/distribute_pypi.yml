@@ -1,10 +1,6 @@
 name: Publish the Python Package to PyPi
 
-on: 
-  push:
-    branches:
-      - 'develop-v4'
-      - 'feature/**'
+on: push
 
 jobs:
   build:
