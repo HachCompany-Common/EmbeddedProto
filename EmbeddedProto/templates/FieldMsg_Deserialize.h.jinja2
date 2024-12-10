@@ -30,4 +30,4 @@ Postal address:
 {% if field.optional %}
 presence_[presence::index(presence::fields::{{field.get_name().upper()}})] |= presence::mask(presence::fields::{{field.get_name().upper()}});
 {% endif %}
-return_value = {{field.get_variable_name()}}.deserialize_check_type(buffer, wire_type);
+return_value = {{field.get_variable_name()}}.deserialize_check_type(buffer, deserialize_wire_type_);

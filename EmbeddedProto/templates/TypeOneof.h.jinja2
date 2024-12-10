@@ -108,8 +108,7 @@ void clear_{{_oneof.get_name()}}()
 {# #}
 {% macro deserialize(_oneof, _environment) %}
 ::EmbeddedProto::Error deserialize_{{_oneof.get_name()}}(const FieldNumber field_id, 
-                              ::EmbeddedProto::ReadBufferInterface& buffer,
-                              const ::EmbeddedProto::WireFormatter::WireType wire_type)
+                              ::EmbeddedProto::ReadBufferInterface& buffer)
 {
   ::EmbeddedProto::Error return_value = ::EmbeddedProto::Error::NO_ERRORS;
   

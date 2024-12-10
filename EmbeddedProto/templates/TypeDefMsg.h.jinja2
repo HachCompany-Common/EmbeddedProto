@@ -199,14 +199,19 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
     ::EmbeddedProto::Error deserialize(::EmbeddedProto::ReadBufferInterface& buffer) override
     {
       ::EmbeddedProto::Error return_value = ::EmbeddedProto::Error::NO_ERRORS;
-      ::EmbeddedProto::WireFormatter::WireType wire_type = ::EmbeddedProto::WireFormatter::WireType::VARINT;
-      uint32_t id_number = 0;
       FieldNumber id_tag = FieldNumber::NOT_SET;
 
-      ::EmbeddedProto::Error tag_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, wire_type, id_number);
+      ::EmbeddedProto::Error tag_value = ::EmbeddedProto::Error::NO_ERRORS;
+      // If we did not already deserialize a tag, obtain the next one. We could have been working 
+      // on a larger field which was not yet fully received in the read buffer.
+      if(0 == deserialize_id_number_)
+      {
+        tag_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, deserialize_wire_type_, deserialize_id_number_);
+      }
+
       while((::EmbeddedProto::Error::NO_ERRORS == return_value) && (::EmbeddedProto::Error::NO_ERRORS == tag_value))
       {
-        id_tag = static_cast<FieldNumber>(id_number);
+        id_tag = static_cast<FieldNumber>(deserialize_id_number_);
         switch(id_tag)
         {
           {% for field in typedef.fields %}
@@ -219,7 +224,7 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
           {% for field in oneof.get_fields() %}
           case FieldNumber::{{field.get_variable_id_name()}}:
           {% endfor %}
-            return_value = deserialize_{{oneof.get_name()}}(id_tag, buffer, wire_type);
+            return_value = deserialize_{{oneof.get_name()}}(id_tag, buffer);
             break;
 
           {% endfor %}
@@ -228,23 +233,32 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
             break;
 
           default:
-            return_value = skip_unknown_field(buffer, wire_type);
+            return_value = skip_unknown_field(buffer, deserialize_wire_type_);
             break;
         }
 
         if(::EmbeddedProto::Error::NO_ERRORS == return_value)
         {
           // Read the next tag.
-          tag_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, wire_type, id_number);
+          tag_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, deserialize_wire_type_, deserialize_id_number_);
         }
       }
 
-      // When an error was detect while reading the tag but no other errors where found, set it in the return value.
-      if((::EmbeddedProto::Error::NO_ERRORS == return_value)
-         && (::EmbeddedProto::Error::NO_ERRORS != tag_value)
-         && (::EmbeddedProto::Error::END_OF_BUFFER != tag_value)) // The end of the buffer is not an array in this case.
+      if(::EmbeddedProto::Error::NO_ERRORS == return_value)
       {
-        return_value = tag_value;
+        // When an error was detect while reading the tag but no other errors where found, set it 
+        // in the return value.
+        if((::EmbeddedProto::Error::NO_ERRORS != tag_value)
+            && (::EmbeddedProto::Error::END_OF_BUFFER != tag_value)) // The end of the buffer is not an array in this case.
+        {
+          return_value = tag_value;
+        }
+      }
+      else
+      {
+        // No errors detected and we are all done. Reset the state of the deserialization.
+        deserialize_id_number_ = 0;
+        deserialize_wire_type_ = ::EmbeddedProto::WireFormatter::WireType::VARINT;
       }
 
       return return_value;
@@ -252,6 +266,8 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
 
     void clear() override
     {
+      deserialize_id_number_ = 0;
+      deserialize_wire_type_ = ::EmbeddedProto::WireFormatter::WireType::VARINT;
       {% for field in typedef.fields %}
       clear_{{field.get_name()}}();
       {% endfor %}
@@ -439,6 +455,11 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
       // Create an array in which the presence flags are stored.
       typename presence::TYPE presence_[presence::SIZE] = {0};
       {% endif %}
+
+      //! The last id number deserialized from a tag. This is used as the internal state of the deserialize function.
+      uint32_t deserialize_id_number_ = 0;
+      //! The last wire type deserialized from a tag. This is used as the internal state of the deserialize function.
+      ::EmbeddedProto::WireFormatter::WireType deserialize_wire_type_ = ::EmbeddedProto::WireFormatter::WireType::VARINT;
 
       {% for field in typedef.fields %}
       {% if field.get_default_value() %}
