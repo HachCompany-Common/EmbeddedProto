@@ -64,6 +64,16 @@ namespace EmbeddedProto
     return result;
   }
 
+  bool ReadBufferSection::peek(const uint32_t n_bytes, uint8_t& byte) const
+  {
+    bool result = n_bytes < size_;
+    if(result)
+    {
+      result = buffer_.peek(n_bytes, byte);
+    }
+    return result;
+  }
+
   bool ReadBufferSection::advance()
   {
     bool result = 0 < size_;

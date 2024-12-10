@@ -63,7 +63,7 @@ namespace EmbeddedProto
         return BUFFER_SIZE;
       }
 
-      //! \see ::EmbeddedProto::ReadBufferInterface::peak()
+      //! \see ::EmbeddedProto::ReadBufferInterface::peek(uint8_t& byte)
       bool peek(uint8_t& byte) const override
       {
         const bool return_value = write_index_ > read_index_;
@@ -72,6 +72,16 @@ namespace EmbeddedProto
           byte = data_[read_index_];
         }
         return return_value;
+      }
+
+      //! \see ::EmbeddedProto::ReadBufferInterface::peek(const int32_t n, uint8_t& byte)
+      bool peek(const uint32_t n_bytes, uint8_t& byte) const override
+      {
+        const bool return_value = write_index_ > (read_index_ + n_bytes);
+        if(return_value)
+        {
+          byte = data_[read_index_ + n_bytes];
+        }
       }
 
       //! \see ::EmbeddedProto::ReadBufferInterface::advance()
@@ -86,9 +96,9 @@ namespace EmbeddedProto
       }
 
       //! \see ::EmbeddedProto::ReadBufferInterface::advance(const uint32_t N)
-      bool advance(const uint32_t N) override
+      bool advance(const uint32_t n_bytes) override
       {
-        const uint32_t new_read_index = read_index_ + N;
+        const uint32_t new_read_index = read_index_ + n_bytes;
         const bool return_value = write_index_ >= new_read_index;
         if(return_value)
         {

@@ -79,6 +79,13 @@ namespace EmbeddedProto
       */
       bool peek(uint8_t& byte) const override;
 
+      //! Expose the function of the parent buffer.
+      /*!
+        This will not do anything if size zero is reached.
+        \return True when the buffer was not empty.
+      */
+      bool peek(const uint32_t n_bytes, uint8_t& byte) const override;
+      
       //! Decrement the size and call advance on the parent buffer.
       /*!
         This will not do anything if size zero is reached.

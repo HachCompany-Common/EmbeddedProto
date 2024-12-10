@@ -217,30 +217,41 @@ namespace EmbeddedProto
 
         Error deserialize(ReadBufferInterface& buffer) override 
         {
-          uint32_t availiable = 0;
-          Error return_value = WireFormatter::DeserializeVarint(buffer, availiable);
-          if(Error::NO_ERRORS == return_value)
+          Error return_value = Error::NO_ERRORS;
+          // If deserialize_n_bytes_available_ equals zero we are not deserializing yet.
+          // So obtain the amount of bytes to process.
+          if(0 == deserialize_n_bytes_available_)
           {
-            if(MAX_LENGTH >= availiable) 
+            uint32_t available = 0;
+            return_value = WireFormatter::DeserializeVarint(buffer, available);
+            if(Error::NO_ERRORS == return_value)
             {
-              clear();
-
-              uint8_t byte = 0;
-              while((current_length_ < availiable) && buffer.pop(byte)) 
+              // See if this amount of data fits
+              if(MAX_LENGTH >= available)
               {
-                (data_[current_length_]) = static_cast<DATA_TYPE>(byte);
-                ++current_length_;
-              }
-
-              if(current_length_ != availiable)
-              {
-                // If at the end we did not read the same number of characters something went wrong.
-                return_value = Error::END_OF_BUFFER;
+                clear();
+                deserialize_n_bytes_available_ = available;
               }
             }
             else 
             {
               return_value = Error::ARRAY_FULL;
+            }
+          }
+
+          if(Error::NO_ERRORS == return_value)
+          {
+            uint8_t byte = 0;
+            while((current_length_ < deserialize_n_bytes_available_) && buffer.pop(byte)) 
+            {
+              (data_[current_length_]) = static_cast<DATA_TYPE>(byte);
+              ++current_length_;
+            }
+
+            if(current_length_ != deserialize_n_bytes_available_)
+            {
+              // If at the end we did not read the same number of characters not all data has been received.
+              return_value = Error::END_OF_BUFFER;
             }
           }
 
@@ -263,7 +274,8 @@ namespace EmbeddedProto
         void clear() override 
         { 
           data_.fill(0);
-          current_length_ = 0; 
+          current_length_ = 0;
+          deserialize_n_bytes_available_ = 0;
         }
 
         //! When serialized with the all elements set, how much bytes are then required.
@@ -298,6 +310,9 @@ namespace EmbeddedProto
 
         //! The text.
         std::array<DATA_TYPE, MAX_LENGTH> data_ = {{0}};
+
+        //! Internal state of the deserialization function.
+        uint32_t deserialize_n_bytes_available_ = 0;
 
     }; // End of class FieldStringBytes
 

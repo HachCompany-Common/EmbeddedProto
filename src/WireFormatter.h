@@ -431,10 +431,11 @@ namespace EmbeddedProto
         TYPE temp_value = 0;
         bool result(true);
         uint8_t byte = 0;
-        for(uint8_t i = 0; (i < std::numeric_limits<TYPE>::digits) && result; 
+        uint8_t i = 0;
+        for(i = 0; (i < std::numeric_limits<TYPE>::digits) && result; 
             i += std::numeric_limits<uint8_t>::digits)  
         {
-          result = buffer.pop(byte);
+          result = buffer.peek(i, byte);
           if(result)
           {
             temp_value |= (static_cast<TYPE>(byte) << i);
@@ -445,6 +446,7 @@ namespace EmbeddedProto
         if(result)
         {
           value = temp_value;
+          buffer.advance(i);
         }
         else 
         {
@@ -503,9 +505,10 @@ namespace EmbeddedProto
       {
         uint8_t byte;
         Error result = Error::NO_ERRORS;
-        if(buffer.pop(byte))
+        if(buffer.peek(byte))
         {
           value = static_cast<bool>(byte);
+          buffer.advance();
         }
         else 
         {
@@ -583,7 +586,7 @@ namespace EmbeddedProto
         bool result = false;
         do 
         {
-          result = buffer.pop(byte);
+          result = buffer.peek(i, byte);
           if(result) 
           {
             temp_value |= static_cast<UINT_TYPE>(byte & (~VARINT_MSB_BYTE)) << (i * VARINT_SHIFT_N_BITS);
@@ -604,6 +607,8 @@ namespace EmbeddedProto
             // All is well.
             value = temp_value;
           }
+          // In any case advance the buffer.
+          buffer.advance(i);
         }
         else 
         {
