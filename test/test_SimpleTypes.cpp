@@ -33,6 +33,7 @@
 #include <WireFormatter.h>
 #include <ReadBufferMock.h>
 #include <WriteBufferMock.h>
+#include <ReadBufferFixedSize.h>
 
 #include <cstdint>    
 #include <limits>
@@ -305,6 +306,56 @@ TEST(SimpleTypes, deserialize_one)
   }
   EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
 
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+
+  EXPECT_EQ(1, msg.get_a_int32());   
+  EXPECT_EQ(1, msg.get_a_int64());     
+  EXPECT_EQ(1U, msg.get_a_uint32());    
+  EXPECT_EQ(1U, msg.get_a_uint64());
+  EXPECT_EQ(1, msg.get_a_sint32());
+  EXPECT_EQ(1, msg.get_a_sint64());
+  EXPECT_EQ(true, msg.get_a_bool());
+  EXPECT_EQ(Test_Enum::ONE, msg.get_a_enum());
+  EXPECT_EQ(1U, msg.get_a_fixed64());
+  EXPECT_EQ(1, msg.get_a_sfixed64());
+  EXPECT_EQ(1.0, msg.get_a_double());
+  EXPECT_EQ(1U, msg.get_a_fixed32());
+  EXPECT_EQ(1, msg.get_a_sfixed32()); 
+  EXPECT_EQ(1.0F, msg.get_a_float());
+}
+
+TEST(SimpleTypes, deserialize_one_partial_buffer) 
+{
+  ::EmbeddedProto::ReadBufferFixedSize<75> buffer;
+  ::Test_Simple_Types msg;
+
+  // Setup the first part of the test data
+  constexpr uint32_t Na = 11;
+  std::array<uint8_t, Na>  refereeA = {  0x08, 0x01, 
+                                         0x10, 0x01, 
+                                         0x18, 0x01, 
+                                         0x20, 0x01, 
+                                         0x28, 0x02, 
+                                         0x30};
+  for(const auto& a: refereeA){ buffer.push(a); }
+
+  // Deserialize the first part. We expect that we reached the end of the buffer an need more data.
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  // Setup the second part of the test data.
+  constexpr uint32_t Nb = 47;
+  std::array<uint8_t, Nb>  refereeB = {        0x02, 
+                                         0x38, 0x01, 
+                                         0x40, 0x01, 
+                                         0x49, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                                         0x51, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                                         0x59, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f, 
+                                         0x65, 0x01, 0x00, 0x00, 0x00, 
+                                         0x6d, 0x01, 0x00, 0x00, 0x00, 
+                                         0x75, 0x00, 0x00, 0x80, 0x3f};
+  for(const auto& b: refereeB){ buffer.push(b); }
+
+  // Deserialize the second part.
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
   EXPECT_EQ(1, msg.get_a_int32());   
