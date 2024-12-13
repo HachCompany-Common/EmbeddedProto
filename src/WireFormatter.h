@@ -431,11 +431,15 @@ namespace EmbeddedProto
         TYPE temp_value = 0;
         bool result(true);
         uint8_t byte = 0;
+        uint8_t n_bytes_ahead = 0;
         uint8_t i = 0;
+
         for(i = 0; (i < std::numeric_limits<TYPE>::digits) && result; 
             i += std::numeric_limits<uint8_t>::digits)  
         {
-          result = buffer.peek(i, byte);
+          // Caluclate which byte to peek a head from the read buffer based on the number of bits.
+          n_bytes_ahead = i / 8;
+          result = buffer.peek(n_bytes_ahead, byte);
           if(result)
           {
             temp_value |= (static_cast<TYPE>(byte) << i);
@@ -446,7 +450,8 @@ namespace EmbeddedProto
         if(result)
         {
           value = temp_value;
-          buffer.advance(i);
+          // Advance the buffer to the next byte to be proccesd
+          buffer.advance(n_bytes_ahead+1);
         }
         else 
         {

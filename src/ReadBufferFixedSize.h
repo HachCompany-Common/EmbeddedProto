@@ -82,6 +82,7 @@ namespace EmbeddedProto
         {
           byte = data_[read_index_ + n_bytes];
         }
+        return return_value;
       }
 
       //! \see ::EmbeddedProto::ReadBufferInterface::advance()
