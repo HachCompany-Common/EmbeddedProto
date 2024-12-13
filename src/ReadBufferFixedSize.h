@@ -33,6 +33,7 @@
 
 #include "ReadBufferInterface.h"
 #include <array>
+#include <initializer_list>
 
 namespace EmbeddedProto 
 {
@@ -47,6 +48,13 @@ namespace EmbeddedProto
     public:
       //! The default constructor which initializes everything at zero.
       ReadBufferFixedSize() = default;
+
+      ReadBufferFixedSize(std::initializer_list<uint8_t> init_list)
+      {
+        // TODO static_assert(init_list.size() <= BUFFER_SIZE, "Initializer does not fit in buffer."); 
+        set_bytes_written(init_list.size());
+        std::copy(init_list.begin(), init_list.end(), data_.begin());
+      }
 
       //! The default destructor.
       ~ReadBufferFixedSize() override = default;
