@@ -258,7 +258,7 @@ TEST(SimpleTypes, deserialize_zero)
   Mocks::ReadBufferMock buffer;
   ::Test_Simple_Types msg;
 
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
   EXPECT_EQ(0, msg.get_a_int32());   
@@ -279,32 +279,26 @@ TEST(SimpleTypes, deserialize_zero)
 
 TEST(SimpleTypes, deserialize_one) 
 {
-  InSequence s;
-  Mocks::ReadBufferMock buffer;
   
-  ON_CALL(buffer, get_size()).WillByDefault(Return(58));
-
   ::Test_Simple_Types msg;
 
-  std::array<uint8_t, 58>  referee = { 0x08, 0x01, 
-                                         0x10, 0x01, 
-                                         0x18, 0x01, 
-                                         0x20, 0x01, 
-                                         0x28, 0x02, 
-                                         0x30, 0x02, 
-                                         0x38, 0x01, 
-                                         0x40, 0x01, 
-                                         0x49, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                                         0x51, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                                         0x59, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f, 
-                                         0x65, 0x01, 0x00, 0x00, 0x00, 
-                                         0x6d, 0x01, 0x00, 0x00, 0x00, 
-                                         0x75, 0x00, 0x00, 0x80, 0x3f};
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  constexpr uint32_t N = 58;
+  std::array<uint8_t, N>  referee = { 0x08, 0x01, 
+                                      0x10, 0x01, 
+                                      0x18, 0x01, 
+                                      0x20, 0x01, 
+                                      0x28, 0x02, 
+                                      0x30, 0x02, 
+                                      0x38, 0x01, 
+                                      0x40, 0x01, 
+                                      0x49, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                                      0x51, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+                                      0x59, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f, 
+                                      0x65, 0x01, 0x00, 0x00, 0x00, 
+                                      0x6d, 0x01, 0x00, 0x00, 0x00, 
+                                      0x75, 0x00, 0x00, 0x80, 0x3f};
+  ::EmbeddedProto::ReadBufferFixedSize<N> buffer;
+  for(const auto& r : referee) { buffer.push(r); }
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -378,22 +372,14 @@ TEST(SimpleTypes, deserialize_10_byte_int32)
 {
   // Some implementations serialize 32bit integers in 10 bytes instead of the theoretical 5.
   // Data in the higher bytes should be ignored.
-
-  InSequence s;
-  Mocks::ReadBufferMock buffer;
   
   constexpr uint32_t N_BYTES = 11;
-
-  ON_CALL(buffer, get_size()).WillByDefault(Return(N_BYTES));
-
+ 
   ::Test_Simple_Types msg;
 
   std::array<uint8_t, N_BYTES>  referee = { 0x08, 0x81, 0x80, 0x80, 0x80, 0x80, 0x8F, 0x8F, 0x8F, 0x8F, 0x0F };
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<N_BYTES> buffer;
+  for(const auto& r: referee){ buffer.push(r); }
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -402,32 +388,25 @@ TEST(SimpleTypes, deserialize_10_byte_int32)
 
 TEST(SimpleTypes, deserialize_max) 
 {
-  InSequence s;
-  Mocks::ReadBufferMock buffer;
-  
-  ON_CALL(buffer, get_size()).WillByDefault(Return(100));
-
   ::Test_Simple_Types msg;
 
-  std::array<uint8_t, 100> referee = { 0x08, 0xFF, 0xFF, 0xFF, 0xFF, 0x07, 
-                                       0x10, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 
-                                       0x18, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 
-                                       0x20, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 
-                                       0x28, 0xFE, 0xFF, 0xFF, 0xFF, 0x0F, 
-                                       0x30, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 
-                                       0x38, 0x01, 
-                                       0x40, 0x80, 0xA8, 0xD6, 0xB9, 0x07,
-                                       0x49, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                                       0x51, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 
-                                       0x59, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xEF, 0x7F, 
-                                       0x65, 0xFF, 0xFF, 0xFF, 0xFF, 
-                                       0x6D, 0xFF, 0xFF, 0xFF, 0x7F, 
-                                       0x75, 0xFF, 0xFF, 0x7F, 0x7F };
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  constexpr uint32_t N_BYTES = 100;
+  std::array<uint8_t, N_BYTES> referee = { 0x08, 0xFF, 0xFF, 0xFF, 0xFF, 0x07, 
+                                           0x10, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 
+                                           0x18, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 
+                                           0x20, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 
+                                           0x28, 0xFE, 0xFF, 0xFF, 0xFF, 0x0F, 
+                                           0x30, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 
+                                           0x38, 0x01, 
+                                           0x40, 0x80, 0xA8, 0xD6, 0xB9, 0x07,
+                                           0x49, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                                           0x51, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 
+                                           0x59, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xEF, 0x7F, 
+                                           0x65, 0xFF, 0xFF, 0xFF, 0xFF, 
+                                           0x6D, 0xFF, 0xFF, 0xFF, 0x7F, 
+                                           0x75, 0xFF, 0xFF, 0x7F, 0x7F };
+  ::EmbeddedProto::ReadBufferFixedSize<N_BYTES> buffer;
+  for(const auto& r: referee) { buffer.push(r); }
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -449,26 +428,20 @@ TEST(SimpleTypes, deserialize_max)
 
 TEST(SimpleTypes, deserialize_min) 
 {
-  InSequence s;
-  Mocks::ReadBufferMock buffer;
-  
-  ON_CALL(buffer, get_size()).WillByDefault(Return(58));
-
   ::Test_Simple_Types msg;
 
-  std::array<uint8_t, 62>  referee = { 0x08, 0x80, 0x80, 0x80, 0x80, 0x08,
-                                       0x10, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01,
-                                       0x28, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 
-                                       0x30, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01,
-                                       0x51, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 
-                                       0x59, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xEF, 0xFF, 
-                                       0x6D, 0x00, 0x00, 0x00, 0x80, 
-                                       0x75, 0xFF, 0xFF, 0x7F, 0xFF };
+  constexpr uint32_t N_BYTES = 62;
+  std::array<uint8_t, N_BYTES>  referee = { 0x08, 0x80, 0x80, 0x80, 0x80, 0x08,
+                                            0x10, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01,
+                                            0x28, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 
+                                            0x30, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01,
+                                            0x51, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 
+                                            0x59, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xEF, 0xFF, 
+                                            0x6D, 0x00, 0x00, 0x00, 0x80, 
+                                            0x75, 0xFF, 0xFF, 0x7F, 0xFF };
 
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<N_BYTES> buffer;
+  for(const auto& r: referee) { buffer.push(r); }
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -490,18 +463,10 @@ TEST(SimpleTypes, deserialize_min)
 
 TEST(SimpleTypes, deserialize_smalest_real) 
 {
-  InSequence s;
-  
   ::Test_Simple_Types msg;
-  Mocks::ReadBufferMock buffer;
 
-  std::array<uint8_t, 14> referee = { 0x59, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 
-                                      0x75, 0x00, 0x00, 0x80, 0x00 };
-  
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<14> buffer({ 0x59, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 
+                                                    0x75, 0x00, 0x00, 0x80, 0x00 });
   
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
