@@ -395,9 +395,9 @@ TEST(RepeatedFieldMessage, deserialize_one)
 
   for(auto r: referee) 
   {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -427,9 +427,9 @@ TEST(RepeatedFieldMessage, deserialize_one_message_array)
 
   for(auto r: referee) 
   {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -466,9 +466,9 @@ TEST(RepeatedFieldMessage, deserialize_mixed_message_array)
 
   for(auto r: referee) 
   {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -500,9 +500,9 @@ TEST(RepeatedFieldMessage, deserialize_max)
 
   for(auto r: referee) 
   {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -592,9 +592,9 @@ TEST(RepeatedFieldMessage, deserialize_repeated_enum)
 
   for(auto r: referee) 
   {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, enum_msg.deserialize(buffer));
   

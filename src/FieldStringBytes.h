@@ -232,11 +232,12 @@ namespace EmbeddedProto
                 clear();
                 deserialize_n_bytes_available_ = available;
               }
+              else 
+              {
+                return_value = Error::ARRAY_FULL;
+              } 
             }
-            else 
-            {
-              return_value = Error::ARRAY_FULL;
-            }
+
           }
 
           if(Error::NO_ERRORS == return_value)

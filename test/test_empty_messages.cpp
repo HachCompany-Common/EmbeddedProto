@@ -71,9 +71,9 @@ TEST(EmptyMessage, deserialize)
   InSequence s;
 
   // Some actual data we try to use to deserialize an empty message.
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x08), Return(true)));
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x01), Return(true)));
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x08), Return(true)));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x01), Return(true)));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
   
   empty_message empty;
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, empty.deserialize(buffer));

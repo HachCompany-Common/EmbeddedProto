@@ -31,6 +31,7 @@
 #include "gtest/gtest.h"
 
 #include <WireFormatter.h>
+#include <ReadBufferFixedSize.h>
 #include <ReadBufferMock.h>
 #include <WriteBufferMock.h>
 #include <Errors.h>
@@ -278,30 +279,19 @@ TEST(NestedMessage, serialize_nested_in_nested_max)
 
 TEST(NestedMessage, deserialize_one) 
 {
-  InSequence s;
-
   ::demo::space::message_b<SIZE_MSG_A> msg;
-  Mocks::ReadBufferMock buffer;
-
-
+  
   static constexpr uint32_t SIZE = 23;
-
-  ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
 
   // Test if a nested message can be deserialized with values set to one.
 
-  std::array<uint8_t, SIZE> referee = { 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // u
+  ::EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({ 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // u
                                         0x12, 0x0A, // tag and size of nested a
                                         0x0A, 0x01, 0x01, // x
                                         0x15, 0x00, 0x00, 0x80, 0x3F, // y
                                         0x18, 0x02, // z
                                         // And back to the parent message with field v.
-                                        0x18, 0x01 };
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+                                        0x18, 0x01 });
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -315,19 +305,14 @@ TEST(NestedMessage, deserialize_one)
 
 TEST(NestedMessage, deserialize_nested_in_nested_max) 
 {
-  InSequence s;
-
   ::demo::space::message_c<SIZE_MSG_A, SIZE_MSG_D> msg;
-  Mocks::ReadBufferMock buffer;
-
 
   static constexpr uint32_t SIZE = 64;
 
-  ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
-
   // Test if a double nested message can be deserialized with values set to maximum.
 
-  std::array<uint8_t, SIZE> referee = { 0x0A, 0x28, // tag and size of nested b
+  ::EmbeddedProto::ReadBufferFixedSize<SIZE> buffer (
+                                      { 0x0A, 0x28, // tag and size of nested b
                                         0x09, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xEF, 0x7F, // u
                                         0x12, 0x17, // tag and size of nested a
                                         0x0A, 0x05, 0xFF, 0xFF, 0xFF, 0xFF, 0x07, // x
@@ -339,12 +324,7 @@ TEST(NestedMessage, deserialize_nested_in_nested_max)
                                         0x0A, 0x0A, // Length of d
                                         0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, // Value(s) of d
                                         0x1A, 0x06, // Tag and size of nested g
-                                        0x08, 0xFF, 0xFF, 0xFF, 0xFF, 0x07 }; // Value g 
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+                                        0x08, 0xFF, 0xFF, 0xFF, 0xFF, 0x07 }); // Value g 
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
