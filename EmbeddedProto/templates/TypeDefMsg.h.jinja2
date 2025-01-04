@@ -200,10 +200,10 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
     {
       ::EmbeddedProto::Error return_value = ::EmbeddedProto::Error::NO_ERRORS;
       FieldNumber id_tag = FieldNumber::NOT_SET;
-
       ::EmbeddedProto::Error tag_value = ::EmbeddedProto::Error::NO_ERRORS;
-      // If we did not already deserialize a tag, obtain the next one. We could have been working 
-      // on a larger field which was not yet fully received in the read buffer.
+
+      // If we did not already deserialize a tag, obtain the next one. When we did remember a tag 
+      // have been deserializing a field which was not yet fully received in the read buffer.
       if(0 == deserialize_id_number_)
       {
         tag_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, deserialize_wire_type_, deserialize_id_number_);
@@ -239,26 +239,19 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
 
         if(::EmbeddedProto::Error::NO_ERRORS == return_value)
         {
-          // Read the next tag.
+          // Read the next tag but first reset the state such that in the case of an error reading 
+          // the tag we will try again on the next call of this function.
+          deserialize_id_number_ = 0;
           tag_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, deserialize_wire_type_, deserialize_id_number_);
         }
       }
 
-      if(::EmbeddedProto::Error::NO_ERRORS == return_value)
+       // When an error was detect while reading the tag but no other errors where found, set it in the return value.
+      if((::EmbeddedProto::Error::NO_ERRORS == return_value)
+         && (::EmbeddedProto::Error::NO_ERRORS != tag_value)
+         && (::EmbeddedProto::Error::END_OF_BUFFER != tag_value)) // The end of the buffer is not an array in this case.
       {
-        // When an error was detect while reading the tag but no other errors where found, set it 
-        // in the return value.
-        if((::EmbeddedProto::Error::NO_ERRORS != tag_value)
-            && (::EmbeddedProto::Error::END_OF_BUFFER != tag_value)) // The end of the buffer is not an array in this case.
-        {
-          return_value = tag_value;
-        }
-      }
-      else
-      {
-        // No errors detected and we are all done. Reset the state of the deserialization.
-        deserialize_id_number_ = 0;
-        deserialize_wire_type_ = ::EmbeddedProto::WireFormatter::WireType::VARINT;
+        return_value = tag_value;
       }
 
       return return_value;

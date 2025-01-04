@@ -78,11 +78,18 @@ namespace EmbeddedProto
                          ? Error::NO_ERRORS : Error::INVALID_WIRETYPE;
     if(Error::NO_ERRORS == return_value)  
     {
-      uint32_t size = 0;
-      return_value = ::EmbeddedProto::WireFormatter::DeserializeVarint(buffer, size);
-      ::EmbeddedProto::ReadBufferSection bufferSection(buffer, size);
+      if(0 == n_bytes_to_include_in_section)
+      {
+        return_value = ::EmbeddedProto::WireFormatter::DeserializeVarint(buffer, n_bytes_to_include_in_section);
+      }
+
       if(::EmbeddedProto::Error::NO_ERRORS == return_value)
       {
+        ::EmbeddedProto::ReadBufferSection bufferSection(buffer, n_bytes_to_include_in_section);
+      
+        // See how many bytes we will now process from the buffer and thus how many bytes are left for the next iteration.
+        n_bytes_to_include_in_section -= bufferSection.get_max_size();
+
         return_value = deserialize(bufferSection);
       }
     }
