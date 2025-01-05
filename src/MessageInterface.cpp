@@ -88,9 +88,18 @@ namespace EmbeddedProto
         ::EmbeddedProto::ReadBufferSection bufferSection(buffer, n_bytes_to_include_in_section);
       
         // See how many bytes we will now process from the buffer and thus how many bytes are left for the next iteration.
-        n_bytes_to_include_in_section -= bufferSection.get_max_size();
+        n_bytes_to_include_in_section -= bufferSection.get_size();
 
         return_value = deserialize(bufferSection);
+
+        n_bytes_to_include_in_section += bufferSection.get_size();
+
+        // In case we have bytes we still need to receive set the end of buffer return value. 
+        // The return value of deserialize has priority.
+        if((::EmbeddedProto::Error::NO_ERRORS == return_value) && (0 < n_bytes_to_include_in_section))
+        {
+          return_value = ::EmbeddedProto::Error::END_OF_BUFFER;
+        }
       }
     }
     return return_value;

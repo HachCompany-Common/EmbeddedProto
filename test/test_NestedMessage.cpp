@@ -303,6 +303,151 @@ TEST(NestedMessage, deserialize_one)
   EXPECT_EQ(1, msg.get_v());
 }
 
+TEST(NestedMessage, deserialize_one_partial_clean_tag) 
+{
+  ::demo::space::message_b<SIZE_MSG_A> msg;
+  
+  static constexpr uint32_t SIZE1 = 10;
+  static constexpr uint32_t SIZE2 = 13;
+
+  // Test splitting the buffer after the tag of nested message a just before the size of the message.
+
+  ::EmbeddedProto::ReadBufferFixedSize<SIZE1> buffer1({ 
+                                        0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // u
+                                        0x12 // tag of nested a
+                                    });
+  
+  // Split after the tag of nested message A
+  
+  ::EmbeddedProto::ReadBufferFixedSize<SIZE2> buffer2({ 
+                                              0x0A, // size of nested a
+                                        0x0A, 0x01, 0x01, // x                                  
+                                        0x15, 0x00, 0x00, 0x80, 0x3F, // y of nested a
+                                        0x18, 0x02, // z
+                                        // And back to the parent message with field v.
+                                        0x18, 0x01 });
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer1));
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer2));
+
+  EXPECT_EQ(1.0F, msg.get_u());
+  EXPECT_EQ(1, msg.get_nested_a().get_x().get_length());
+  EXPECT_EQ(1, msg.get_nested_a().x(0));
+  EXPECT_EQ(1.0F, msg.get_nested_a().get_y());
+  EXPECT_EQ(1, msg.get_nested_a().get_z());
+  EXPECT_EQ(1, msg.get_v());
+}
+
+TEST(NestedMessage, deserialize_one_partial_clean_size) 
+{
+  ::demo::space::message_b<SIZE_MSG_A> msg;
+  
+  static constexpr uint32_t SIZE1 = 11;
+  static constexpr uint32_t SIZE2 = 12;
+
+  // Test splitting the buffer just after the size of nested message a.
+
+  ::EmbeddedProto::ReadBufferFixedSize<SIZE1> buffer1({ 
+                                        0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // u
+                                        0x12, 0x0A, // tag and size of nested a
+                                    });
+  
+  // Split after the tag of nested message A
+  
+  ::EmbeddedProto::ReadBufferFixedSize<SIZE2> buffer2({ 
+                                        0x0A, 0x01, 0x01, // x of nested message a                               
+                                        0x15, 0x00, 0x00, 0x80, 0x3F, // y of nested a
+                                        0x18, 0x02, // z of nested message a
+                                        // And back to the parent message with field v.
+                                        0x18, 0x01 });
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer1));
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer2));
+
+  EXPECT_EQ(1.0F, msg.get_u());
+  EXPECT_EQ(1, msg.get_nested_a().get_x().get_length());
+  EXPECT_EQ(1, msg.get_nested_a().x(0));
+  EXPECT_EQ(1.0F, msg.get_nested_a().get_y());
+  EXPECT_EQ(1, msg.get_nested_a().get_z());
+  EXPECT_EQ(1, msg.get_v());
+}
+
+TEST(NestedMessage, deserialize_one_partial_size) 
+{
+  ::demo::space::message_b<127> msg;
+ 
+  // Have a larger nested message a where the size consists of multiple bytes. Split in between 
+  // those size bytes.
+
+  ::EmbeddedProto::ReadBufferFixedSize<150> buffer({  
+                                        0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // u
+                                        0x18, 0x01, // v
+                                        0x12, 0x88, });   // Split within the size nested message A
+  
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+  
+  std::array<uint8_t, 10> temp_buffer({             0x01, // Continuation of the size of nested message A.
+                                        0x15, 0x00, 0x00, 0x80, 0x3F, // y of nested a
+                                        0x18, 0x02, // z of nested message a
+                                        0x0A, 0x7F }); // Tag and size of x in nested message A.
+  for(const auto& tb: temp_buffer) {
+    buffer.push(tb);
+  }
+
+  // The reason why the message is large, a large array.
+  for(uint32_t i = 0; i < 127; ++i)
+  {
+    buffer.push(0x01);
+  }
+
+  // Deserialize the second part. 
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+
+  EXPECT_EQ(1.0F, msg.get_u());
+  EXPECT_EQ(127, msg.get_nested_a().get_x().get_length());
+  for(uint32_t i = 0; i < 127; ++i)
+  {
+    EXPECT_EQ(1, msg.get_nested_a().x(i));
+  }
+  EXPECT_EQ(1.0F, msg.get_nested_a().get_y());
+  EXPECT_EQ(1, msg.get_nested_a().get_z());
+  EXPECT_EQ(1, msg.get_v());
+}
+
+TEST(NestedMessage, deserialize_one_partial_clean_field) 
+{
+  ::demo::space::message_b<SIZE_MSG_A> msg;
+  
+  static constexpr uint32_t SIZE1 = 14;
+  static constexpr uint32_t SIZE2 = 9;
+
+  // Split after a random field of nested message a.
+
+  ::EmbeddedProto::ReadBufferFixedSize<SIZE1> buffer1({ 
+                                        0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0x3F, // u
+                                        0x12, 0x0A, // tag and size of nested a
+                                        0x0A, 0x01, 0x01, // x
+                                    });
+  
+  // Clean split at the end of a field in a nested message
+  
+  ::EmbeddedProto::ReadBufferFixedSize<SIZE2> buffer2({                                   
+                                        0x15, 0x00, 0x00, 0x80, 0x3F, // y of nested a
+                                        0x18, 0x02, // z
+                                        // And back to the parent message with field v.
+                                        0x18, 0x01 });
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer1));
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer2));
+
+  EXPECT_EQ(1.0F, msg.get_u());
+  EXPECT_EQ(1, msg.get_nested_a().get_x().get_length());
+  EXPECT_EQ(1, msg.get_nested_a().x(0));
+  EXPECT_EQ(1.0F, msg.get_nested_a().get_y());
+  EXPECT_EQ(1, msg.get_nested_a().get_z());
+  EXPECT_EQ(1, msg.get_v());
+}
+
 TEST(NestedMessage, deserialize_nested_in_nested_max) 
 {
   ::demo::space::message_c<SIZE_MSG_A, SIZE_MSG_D> msg;
