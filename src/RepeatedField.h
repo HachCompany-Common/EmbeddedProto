@@ -339,19 +339,32 @@ namespace EmbeddedProto
 
       Error deserialize_packed(ReadBufferInterface& buffer)
       {
-        uint32_t size = 0;
-        Error return_value = WireFormatter::DeserializeVarint(buffer, size);
-        ReadBufferSection bufferSection(buffer, size);
-        DATA_TYPE x;
+        Error return_value = Error::NO_ERRORS;
         
-        return_value = x.deserialize(bufferSection);
-        while(Error::NO_ERRORS == return_value)
+        if(0 == n_bytes_to_include_in_section)
         {
-          return_value = this->add(x);
-          if(Error::NO_ERRORS == return_value)
+          return_value = WireFormatter::DeserializeVarint(buffer, n_bytes_to_include_in_section);
+        }
+
+        if(Error::NO_ERRORS == return_value) 
+        {
+          ReadBufferSection bufferSection(buffer, n_bytes_to_include_in_section);
+          DATA_TYPE x;
+
+          // See how many bytes we will now process from the buffer and thus how many bytes are left for the next iteration.
+          n_bytes_to_include_in_section -= bufferSection.get_size();
+        
+          return_value = x.deserialize(bufferSection);
+          while(Error::NO_ERRORS == return_value)
           {
-            return_value = x.deserialize(bufferSection);
+            return_value = this->add(x);
+            if(Error::NO_ERRORS == return_value)
+            {
+              return_value = x.deserialize(bufferSection);
+            }
           }
+
+          n_bytes_to_include_in_section += bufferSection.get_size();
         }
 
         // We expect the buffersection to be empty, in that case everything is fine..

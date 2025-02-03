@@ -34,6 +34,8 @@
 #include <ReadBufferMock.h>
 #include <WriteBufferMock.h>
 
+#include <ReadBufferFixedSize.h>
+
 #include <cstdint>    
 #include <limits>
 #include <array>
@@ -398,6 +400,37 @@ TEST(RepeatedFieldMessage, deserialize_one)
     EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
   EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
+
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+
+  EXPECT_EQ(1, msg.get_x());
+  EXPECT_EQ(3, msg.get_y().get_length());
+  EXPECT_EQ(1, msg.y(0));
+  EXPECT_EQ(1, msg.y(1));
+  EXPECT_EQ(1, msg.y(2));
+  EXPECT_EQ(1, msg.get_z());
+
+}
+
+TEST(RepeatedFieldMessage, deserialize_one_partial) 
+{
+  repeated_fields<Y_SIZE> msg;
+
+  static constexpr uint32_t SIZE = 9;
+
+  EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
+                                    0x08, 0x01, // x tag and value
+                                    0x12, 0x03}); // y tag and size.
+                                    
+                                    
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+                                 
+  buffer.push(0x01);  // start of y data.                                
+  buffer.push(0x01);
+  buffer.push(0x01);                                
+  
+  buffer.push(0x18); // z tag
+  buffer.push(0x01); // z value
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
