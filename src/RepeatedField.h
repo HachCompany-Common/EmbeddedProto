@@ -365,12 +365,12 @@ namespace EmbeddedProto
           }
 
           n_bytes_to_include_in_section += bufferSection.get_size();
-        }
 
-        // We expect the buffersection to be empty, in that case everything is fine..
-        if((Error::END_OF_BUFFER == return_value) && (0 == n_bytes_to_include_in_section))
-        {
-          return_value = Error::NO_ERRORS;
+          // We expect the buffersection to be empty, in that case everything is fine..
+          if((Error::END_OF_BUFFER == return_value) && (0 == n_bytes_to_include_in_section))
+          {
+            return_value = Error::NO_ERRORS;
+          }
         }
 
         return return_value;
