@@ -83,7 +83,7 @@ namespace EmbeddedProto
         return_value = ::EmbeddedProto::WireFormatter::DeserializeVarint(buffer, n_bytes_to_include_in_section);
       }
 
-      if(::EmbeddedProto::Error::NO_ERRORS == return_value)
+      if((::EmbeddedProto::Error::NO_ERRORS == return_value) && (0 < n_bytes_to_include_in_section))
       {
         ::EmbeddedProto::ReadBufferSection bufferSection(buffer, n_bytes_to_include_in_section);
       
