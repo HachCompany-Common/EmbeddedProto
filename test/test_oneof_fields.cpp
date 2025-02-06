@@ -275,15 +275,15 @@ TEST(OneofField, deserialize_override)
 
 TEST(OneofField, deserialize_failure)
 {
-  InSequence s;
-
   message_oneof msg;
-  Mocks::ReadBufferMock buffer;
 
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x30), Return(true)));  // y
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x01), Return(false))); // This simulates the fialure.
+  ::EmbeddedProto::ReadBufferFixedSize<13> buffer(
+                                    { 0x30, // y
+                                      // This simulates the OVERLONG_VARINT Failure. More bytes than fit in a varint.
+                                      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                                      0x00}); 
 
-  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+  EXPECT_EQ(::EmbeddedProto::Error::OVERLONG_VARINT, msg.deserialize(buffer));
   EXPECT_EQ(message_oneof::FieldNumber::NOT_SET, msg.get_which_xyz());
 
 }

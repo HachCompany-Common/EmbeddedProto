@@ -128,7 +128,10 @@ void clear_{{_oneof.get_name()}}()
       break;
   }
 
-  if(::EmbeddedProto::Error::NO_ERRORS != return_value)
+  // If we have a "serious failure", clear the oneof. The end of buffer could signal a partial 
+  // deserialization so we should not clear in that case.
+  if((::EmbeddedProto::Error::NO_ERRORS != return_value) && 
+     (::EmbeddedProto::Error::END_OF_BUFFER != return_value))
   {
     clear_{{_oneof.get_name()}}();
   }
