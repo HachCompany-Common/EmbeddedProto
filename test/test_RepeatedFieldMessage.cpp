@@ -359,11 +359,13 @@ TEST(RepeatedFieldMessage, serialize_fault_buffer_full)
 
 TEST(RepeatedFieldMessage, deserialize_empty_array) 
 {
+  InSequence s;
   repeated_fields<Y_SIZE> msg;
 
   Mocks::ReadBufferMock buffer;
-  EXPECT_CALL(buffer, pop(_)).WillRepeatedly(Return(false));
-  EXPECT_CALL(buffer, get_size()).WillRepeatedly(Return(0));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x12), Return(true))); // Tag of y
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x00), Return(true)));// Size of y = 0
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -371,11 +373,14 @@ TEST(RepeatedFieldMessage, deserialize_empty_array)
 
 TEST(RepeatedFieldMessage, deserialize_empty_message_array) 
 {
+  InSequence s;
+
   repeated_message<Y_SIZE> msg;
 
   Mocks::ReadBufferMock buffer;
-  EXPECT_CALL(buffer, pop(_)).WillRepeatedly(Return(false));
-  EXPECT_CALL(buffer, get_size()).WillRepeatedly(Return(0));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x12), Return(true)));// Tag of b
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x00), Return(true)));// Size of b = 0
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 }
@@ -420,11 +425,13 @@ TEST(RepeatedFieldMessage, deserialize_one_partial)
 
   EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
                                     0x08, 0x01, // x tag and value
-                                    0x12, 0x03}); // y tag and size.
-                                    
+                                    0x12}); // y tag 
+
+  buffer.push(0x03); //y size                                    
                                     
   EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
-                                 
+
+          
   buffer.push(0x01);  // start of y data.                                
   buffer.push(0x01);
   buffer.push(0x01);                                
@@ -455,7 +462,7 @@ TEST(RepeatedFieldMessage, deserialize_one_message_array)
   ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
 
   std::array<uint8_t, SIZE> referee = { 0x08, 0x01, // x
-                                        0x12, 0x00, 0x12, 0x04, 0x08, 0x01, 0x10, 0x01, 0x12, 0x00, // y
+                                        0x12, 0x00, 0x12, 0x04, 0x08, 0x01, 0x10, 0x01, 0x12, 0x00, // b
                                         0x18, 0x01}; // z 
 
   for(auto r: referee) 
@@ -491,11 +498,11 @@ TEST(RepeatedFieldMessage, deserialize_mixed_message_array)
 
   ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
 
-  std::array<uint8_t, SIZE> referee = { 0x12, 0x00, // y[0]
+  std::array<uint8_t, SIZE> referee = { 0x12, 0x00, // b[0]
                                         0x08, 0x01, // x
-                                        0x12, 0x04, 0x08, 0x01, 0x10, 0x01, // y[1]
+                                        0x12, 0x04, 0x08, 0x01, 0x10, 0x01, // b[1]
                                         0x18, 0x01, // z
-                                        0x12, 0x00, }; // y[2] 
+                                        0x12, 0x00, }; // b[2] 
 
   for(auto r: referee) 
   {
