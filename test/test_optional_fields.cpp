@@ -263,7 +263,7 @@ TEST(OptionalFields, cleared_deserialization)
 
   EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
-  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
 
   EXPECT_FALSE(msg.has_b());
   EXPECT_FALSE(msg.has_y());

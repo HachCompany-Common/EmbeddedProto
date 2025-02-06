@@ -259,7 +259,7 @@ TEST(SimpleTypes, deserialize_zero)
   ::Test_Simple_Types msg;
 
   EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
-  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
 
   EXPECT_EQ(0, msg.get_a_int32());   
   EXPECT_EQ(0, msg.get_a_int64());     
