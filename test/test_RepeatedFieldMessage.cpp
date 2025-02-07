@@ -506,32 +506,28 @@ TEST(RepeatedFieldMessage, deserialize_split_after_tag)
 
 TEST(RepeatedFieldMessage, deserialize_split_varint) 
 {
-  repeated_fields<Y_SIZE> msg;
+  repeated_fields<128> msg;
 
-  static constexpr uint32_t SIZE = 14;
+  static constexpr uint32_t SIZE = 133;
   
   EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
                                     0x08, 0x01, // x tag and value
-                                    0x12, 0x0A, 0xFF, 0xFF}); // left over y data
-                                    
-                                    
-  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+                                    0x12, 0x80}); // y size is 128 bytes (0x80 0x01)
 
-  buffer.push(0xFF);  // rest of first y element                                 
-  buffer.push(0xFF);  // start of second y element
-  buffer.push(0x07);
-  buffer.push(0xFF); 
-  buffer.push(0xFF);
-  buffer.push(0xFF);
-  buffer.push(0xFF);
-  buffer.push(0x07);                               
-  
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));                                    
+
+  buffer.push(0x01); // rest of size
+
+  for(int i = 0; i < 128; ++i) {
+    buffer.push(0x0D); // Push 128 bytes of value 0x0D
+  }
+
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
   EXPECT_EQ(1, msg.get_x());
-  EXPECT_EQ(2, msg.get_y().get_length());
-  EXPECT_EQ(2147483647, msg.y(0));
-  EXPECT_EQ(2147483647, msg.y(1));
+  EXPECT_EQ(128, msg.get_y().get_length());
+  EXPECT_EQ(13, msg.y(0));
+  EXPECT_EQ(13, msg.y(127));
 }
 
 TEST(RepeatedFieldMessage, deserialize_split_between_elements) 
