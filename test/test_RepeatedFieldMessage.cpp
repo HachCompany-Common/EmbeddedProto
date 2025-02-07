@@ -450,6 +450,125 @@ TEST(RepeatedFieldMessage, deserialize_one_partial)
 
 }
 
+TEST(RepeatedFieldMessage, deserialize_incomplete_set_of_bytes) 
+{
+  repeated_fields<Y_SIZE> msg;
+
+  static constexpr uint32_t SIZE = 6;
+
+  EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
+                                    0x08, 0x01, // x tag and value
+                                    0x12, 0x03}); // y tag and size.
+                                    
+                                    
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+                                 
+  buffer.push(0x01);  // start of y data.                                
+  buffer.push(0x01);        
+  // We are missing one byte here.                     
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+ 
+}
+
+TEST(RepeatedFieldMessage, deserialize_split_after_tag) 
+{
+  repeated_fields<Y_SIZE> msg;
+
+  static constexpr uint32_t SIZE = 9;
+
+  EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
+                                    0x08, 0x01, // x tag and value
+                                    0x12}); // just y tag.
+                                    
+                                    
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0x03);  // y size                                 
+  buffer.push(0x01);  // start of y data.                                
+  buffer.push(0x01);
+  buffer.push(0x01);                                
+  
+  buffer.push(0x18); // z tag
+  buffer.push(0x01); // z value
+
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+
+  EXPECT_EQ(1, msg.get_x());
+  EXPECT_EQ(3, msg.get_y().get_length());
+  EXPECT_EQ(1, msg.y(0));
+  EXPECT_EQ(1, msg.y(1));
+  EXPECT_EQ(1, msg.y(2));
+  EXPECT_EQ(1, msg.get_z());
+
+}
+
+
+TEST(RepeatedFieldMessage, deserialize_split_varint) 
+{
+  repeated_fields<Y_SIZE> msg;
+
+  static constexpr uint32_t SIZE = 14;
+  
+  EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
+                                    0x08, 0x01, // x tag and value
+                                    0x12, 0x0A, 0xFF, 0xFF}); // left over y data
+                                    
+                                    
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0xFF);  // rest of first y element                                 
+  buffer.push(0xFF);  // start of second y element
+  buffer.push(0x07);
+  buffer.push(0xFF); 
+  buffer.push(0xFF);
+  buffer.push(0xFF);
+  buffer.push(0xFF);
+  buffer.push(0x07);                               
+  
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+
+  EXPECT_EQ(1, msg.get_x());
+  EXPECT_EQ(2, msg.get_y().get_length());
+  EXPECT_EQ(2147483647, msg.y(0));
+  EXPECT_EQ(2147483647, msg.y(1));
+}
+
+TEST(RepeatedFieldMessage, deserialize_split_between_elements) 
+{
+  repeated_fields<Y_SIZE> msg;
+
+  static constexpr uint32_t SIZE = 16;
+  
+  EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
+                                    0x08, 0x01, // x tag and value
+                                    0x12, 0x0A, 0xFF, 0xFF, 0xFF, 0xFF, 0x07}); // left over y data 
+                                    
+                                    
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0xFF); // Rest of y data
+  buffer.push(0xFF);
+  buffer.push(0xFF);
+  buffer.push(0xFF);
+  buffer.push(0x07);
+  buffer.push(0x18); // z tag           
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));  
+
+  buffer.push(0x01); // z value                  
+  
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+
+  EXPECT_EQ(1, msg.get_x());
+  EXPECT_EQ(2, msg.get_y().get_length());
+  EXPECT_EQ(2147483647, msg.y(0));
+  EXPECT_EQ(2147483647, msg.y(1));
+  EXPECT_EQ(1, msg.get_z());
+}
+
+
+
 TEST(RepeatedFieldMessage, deserialize_one_message_array) 
 {
   InSequence s;
