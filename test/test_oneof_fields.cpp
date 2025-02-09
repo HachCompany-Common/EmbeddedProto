@@ -31,6 +31,7 @@
 #include "gtest/gtest.h"
 
 #include <WireFormatter.h>
+#include <ReadBufferFixedSize.h>
 #include <ReadBufferMock.h>
 #include <WriteBufferMock.h>
 
@@ -235,9 +236,9 @@ TEST(OneofField, deserialize)
                                      0x30, 0x01 };// y
 
   for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -260,9 +261,9 @@ TEST(OneofField, deserialize_override)
                                      0x28, 0x01 };// x 
 
   for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -274,35 +275,28 @@ TEST(OneofField, deserialize_override)
 
 TEST(OneofField, deserialize_failure)
 {
-  InSequence s;
-
   message_oneof msg;
-  Mocks::ReadBufferMock buffer;
 
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x30), Return(true)));  // y
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x01), Return(false))); // This simulates the fialure.
+  ::EmbeddedProto::ReadBufferFixedSize<13> buffer(
+                                    { 0x30, // y
+                                      // This simulates the OVERLONG_VARINT Failure. More bytes than fit in a varint.
+                                      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                                      0x00}); 
 
-  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+  EXPECT_EQ(::EmbeddedProto::Error::OVERLONG_VARINT, msg.deserialize(buffer));
   EXPECT_EQ(message_oneof::FieldNumber::NOT_SET, msg.get_which_xyz());
 
 }
 
 TEST(OneofField, deserialize_second_oneof) 
 {
-  InSequence s;
-
   message_oneof msg;
-  Mocks::ReadBufferMock buffer;
 
-  std::array<uint8_t, 12> referee = { 0x08, 0x01,  // a
+  ::EmbeddedProto::ReadBufferFixedSize<13> buffer(
+                                    { 0x08, 0x01,  // a
                                       0x50, 0x01,  // b
                                       0x28, 0x01,  // x
-                                      0x85, 0x01, 0x00, 0x00, 0x80, 0x3f }; // v
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+                                      0x85, 0x01, 0x00, 0x00, 0x80, 0x3f }); // v
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -347,20 +341,11 @@ TEST(OneofField, serialize_oneof_msg)
 
 TEST(OneofField, deserialize_oneof_msg) 
 {
-  InSequence s;
-
   message_oneof msg;
-  Mocks::ReadBufferMock buffer;
 
   static constexpr uint32_t SIZE = 10;
 
-  ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
-
-  std::array<uint8_t, SIZE> referee = {0xaa, 0x01, 0x07, 0x08, 0x01, 0x10, 0x16, 0x18, 0xcd, 0x02};
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({0xaa, 0x01, 0x07, 0x08, 0x01, 0x10, 0x16, 0x18, 0xcd, 0x02});
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 

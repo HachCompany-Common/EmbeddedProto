@@ -32,6 +32,7 @@
 #include "gmock/gmock.h"
 
 #include <WireFormatter.h>
+#include <ReadBufferFixedSize.h>
 #include <ReadBufferMock.h>
 #include <WriteBufferMock.h>
 
@@ -237,24 +238,63 @@ TEST(FieldString, serialize_buffer_full)
 
 TEST(FieldString, deserialize) 
 {
-  InSequence s;
-
   text<10> msg;
-  Mocks::ReadBufferMock buffer;
-
-  std::array<uint8_t, 9> referee = {0x0a, 0x07, 0x46, 0x6f, 0x6f, 0x20, 0x62, 0x61, 0x72};
-
-  for(auto r: referee) 
-  {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
-
+ 
+  ::EmbeddedProto::ReadBufferFixedSize<9> buffer({0x0a, 0x07, 0x46, 0x6f, 0x6f, 0x20, 0x62, 0x61, 0x72});
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
   EXPECT_EQ(7, msg.get_txt().get_length());
   EXPECT_STREQ(msg.txt(), "Foo bar");
 }
+
+
+TEST(FieldString, deserialize_partial_in_data) 
+{
+  text<10> msg;
+ 
+  ::EmbeddedProto::ReadBufferFixedSize<9> buffer({0x0a, 0x07, 0x46, 0x6f, 0x6f}); // Split in the data
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0x20);
+  buffer.push(0x62);
+  buffer.push(0x61);
+  buffer.push(0x72);
+
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+  EXPECT_EQ(7, msg.get_txt().get_length());
+  EXPECT_STREQ(msg.txt(), "Foo bar");
+}
+
+TEST(FieldString, deserialize_partial_before_and_in_size) 
+{
+  text<140> msg;
+ 
+  ::EmbeddedProto::ReadBufferFixedSize<150> buffer({0x0a});   // Field tag 
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0x8c); // First byte of length  
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0x01); // Second byte of the length
+
+  for( uint32_t i = 0; i < 20; ++i)
+  {
+    buffer.push(0x46); 
+    buffer.push(0x6f);
+    buffer.push(0x6f);
+    buffer.push(0x20);
+    buffer.push(0x62);
+    buffer.push(0x61);
+    buffer.push(0x72);
+  }
+
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+  EXPECT_EQ(140, msg.get_txt().get_length());
+}
+
 
 TEST(FieldString, deserialize_error_invalid_wiretype) 
 {
@@ -264,25 +304,16 @@ TEST(FieldString, deserialize_error_invalid_wiretype)
   Mocks::ReadBufferMock buffer;
 
   // The first byte is an invalid wiretype
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x09), Return(true)));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x09), Return(true)));
   EXPECT_EQ(::EmbeddedProto::Error::INVALID_WIRETYPE, msg.deserialize(buffer));
   EXPECT_EQ(0, msg.get_txt().get_length());
 }
 
 TEST(FieldString, deserialize_array_full) 
 {
-  InSequence s;
-
   text<3> msg;
-  Mocks::ReadBufferMock buffer;
 
-  std::array<uint8_t, 2> referee = {0x0a, 0x07};
-
-  for(auto r: referee) 
-  {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-
+  ::EmbeddedProto::ReadBufferFixedSize<6> buffer({0x0a, 0x04, 0x61, 0x62, 0x63, 0x64});
 
   EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, msg.deserialize(buffer));
   EXPECT_EQ(0, msg.get_txt().get_length());
@@ -291,19 +322,9 @@ TEST(FieldString, deserialize_array_full)
 
 TEST(FieldString, deserialize_end_of_buffer) 
 {
-  InSequence s;
-
   text<10> msg;
-  Mocks::ReadBufferMock buffer;
 
-  std::array<uint8_t, 7> referee = {0x0a, 0x07, 0x46, 0x6f, 0x6f, 0x20, 0x62};
-
-  for(auto r: referee) 
-  {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
-
+  ::EmbeddedProto::ReadBufferFixedSize<7> buffer({0x0a, 0x07, 0x46, 0x6f, 0x6f, 0x20, 0x62});
 
   EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
   EXPECT_EQ(5, msg.get_txt().get_length());
@@ -338,19 +359,9 @@ TEST(FieldString, oneof_serialize)
 
 TEST(FieldString, oneof_deserialize) 
 {
-  InSequence s;
-
   string_or_bytes<3, 3, 10, 10> msg;
-  Mocks::ReadBufferMock buffer;
 
-  std::array<uint8_t, 9> referee = {0x0a, 0x07, 0x46, 0x6f, 0x6f, 0x20, 0x62, 0x61, 0x72};
-
-  for(auto r: referee) 
-  {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
-
+  ::EmbeddedProto::ReadBufferFixedSize<9> buffer({0x0a, 0x07, 0x46, 0x6f, 0x6f, 0x20, 0x62, 0x61, 0x72});
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
   EXPECT_EQ(7, msg.get_txt().get_length());
@@ -497,19 +508,29 @@ TEST(FieldBytes, serialize)
 
 TEST(FieldBytes, deserialize) 
 {
-  InSequence s;
-
   raw_bytes<10> msg;
-  Mocks::ReadBufferMock buffer;
+ 
+  ::EmbeddedProto::ReadBufferFixedSize<6> buffer({0x0a, 0x04, 0x01, 0x02, 0x03, 0x00});
 
-  std::array<uint8_t, 6> referee = {0x0a, 0x04, 0x01, 0x02, 0x03, 0x00};
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+  EXPECT_EQ(4, msg.get_b().get_length());
+  EXPECT_EQ(1, msg.get_b()[0]);
+  EXPECT_EQ(2, msg.get_b()[1]);
+  EXPECT_EQ(3, msg.get_b()[2]);
+  EXPECT_EQ(0, msg.get_b()[3]);
+}
 
-  for(auto r: referee) 
-  {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+TEST(FieldBytes, deserialize_partial) 
+{
+  raw_bytes<10> msg;
+ 
+  ::EmbeddedProto::ReadBufferFixedSize<6> buffer({0x0a, 0x04, 0x01});
 
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0x02);
+  buffer.push(0x03);
+  buffer.push(0x00);
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
   EXPECT_EQ(4, msg.get_b().get_length());
@@ -527,7 +548,7 @@ TEST(FieldBytes, deserialize_error_invalid_wiretype)
   Mocks::ReadBufferMock buffer;
 
   // The first byte is an invalid wiretype
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x09), Return(true)));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x09), Return(true)));
   EXPECT_EQ(::EmbeddedProto::Error::INVALID_WIRETYPE, msg.deserialize(buffer));
   EXPECT_EQ(0, msg.get_b().get_length());
 }
@@ -612,19 +633,9 @@ TEST(FieldBytes, oneof_serialize)
 
 TEST(FieldBytes, oneof_deserialize) 
 {
-  InSequence s;
-
   string_or_bytes<3, 3, 10, 10> msg;
-  Mocks::ReadBufferMock buffer;
 
-  std::array<uint8_t, 6> referee = {0x12, 0x04, 0x01, 0x02, 0x03, 0x00};
-
-  for(auto r: referee) 
-  {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
-
+  ::EmbeddedProto::ReadBufferFixedSize<6> buffer({0x12, 0x04, 0x01, 0x02, 0x03, 0x00});
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
   EXPECT_EQ(4, msg.get_b().get_length());
@@ -744,38 +755,15 @@ TEST(RepeatedStringBytes, serialize)
 
 TEST(RepeatedStringBytes, deserialize) 
 { 
-  InSequence s;
-
   repeated_string_bytes<3, 15, 3, 15, 3, 3> msg;
-  Mocks::ReadBufferMock buffer;
 
-  // Pop the tag and size of the first string
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x0a), Return(true)));
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x09), Return(true)));
-
-  std::array<uint8_t, 9> referee_str1 = {0x46, 0x6f, 0x6f, 0x20, 0x62, 0x61, 0x72, 0x20, 0x31};
-
-  for(auto r: referee_str1) 
-  {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-
-  // Pop the tag and size of the second string
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x0a), Return(true)));
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x00), Return(true)));
-
-  // Pop the tag and size of the third string
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x0a), Return(true)));
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(0x09), Return(true)));
-
-  std::array<uint8_t, 9> referee_str3 = {0x46, 0x6f, 0x6f, 0x20, 0x62, 0x61, 0x72, 0x20, 0x33};
-
-  for(auto r: referee_str3) 
-  {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<24> buffer( {
+      0x0a, 0x09, // Pop the tag and size of the first string
+      0x46, 0x6f, 0x6f, 0x20, 0x62, 0x61, 0x72, 0x20, 0x31,
+      0x0a, 0x00, // Pop the tag and size of the second string
+      0x0a, 0x09, // Pop the tag and size of the third string
+      0x46, 0x6f, 0x6f, 0x20, 0x62, 0x61, 0x72, 0x20, 0x33,
+    } );
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
   EXPECT_EQ(3, msg.array_of_txt().get_length());

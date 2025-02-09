@@ -34,6 +34,8 @@
 #include <ReadBufferMock.h>
 #include <WriteBufferMock.h>
 
+#include <ReadBufferFixedSize.h>
+
 #include <cstdint>    
 #include <limits>
 #include <array>
@@ -357,11 +359,13 @@ TEST(RepeatedFieldMessage, serialize_fault_buffer_full)
 
 TEST(RepeatedFieldMessage, deserialize_empty_array) 
 {
+  InSequence s;
   repeated_fields<Y_SIZE> msg;
 
   Mocks::ReadBufferMock buffer;
-  EXPECT_CALL(buffer, pop(_)).WillRepeatedly(Return(false));
-  EXPECT_CALL(buffer, get_size()).WillRepeatedly(Return(0));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x12), Return(true))); // Tag of y
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x00), Return(true)));// Size of y = 0
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -369,11 +373,14 @@ TEST(RepeatedFieldMessage, deserialize_empty_array)
 
 TEST(RepeatedFieldMessage, deserialize_empty_message_array) 
 {
+  InSequence s;
+
   repeated_message<Y_SIZE> msg;
 
   Mocks::ReadBufferMock buffer;
-  EXPECT_CALL(buffer, pop(_)).WillRepeatedly(Return(false));
-  EXPECT_CALL(buffer, get_size()).WillRepeatedly(Return(0));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x12), Return(true)));// Tag of b
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x00), Return(true)));// Size of b = 0
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 }
@@ -395,9 +402,9 @@ TEST(RepeatedFieldMessage, deserialize_one)
 
   for(auto r: referee) 
   {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -409,6 +416,154 @@ TEST(RepeatedFieldMessage, deserialize_one)
   EXPECT_EQ(1, msg.get_z());
 
 }
+
+TEST(RepeatedFieldMessage, deserialize_one_partial) 
+{
+  repeated_fields<Y_SIZE> msg;
+
+  static constexpr uint32_t SIZE = 9;
+
+  EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
+                                    0x08, 0x01, // x tag and value
+                                    0x12}); // y tag 
+
+  buffer.push(0x03); //y size                                    
+                                    
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+          
+  buffer.push(0x01);  // start of y data.                                
+  buffer.push(0x01);
+  buffer.push(0x01);                                
+  
+  buffer.push(0x18); // z tag
+  buffer.push(0x01); // z value
+
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+
+  EXPECT_EQ(1, msg.get_x());
+  EXPECT_EQ(3, msg.get_y().get_length());
+  EXPECT_EQ(1, msg.y(0));
+  EXPECT_EQ(1, msg.y(1));
+  EXPECT_EQ(1, msg.y(2));
+  EXPECT_EQ(1, msg.get_z());
+
+}
+
+TEST(RepeatedFieldMessage, deserialize_incomplete_set_of_bytes) 
+{
+  repeated_fields<Y_SIZE> msg;
+
+  static constexpr uint32_t SIZE = 6;
+
+  EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
+                                    0x08, 0x01, // x tag and value
+                                    0x12, 0x03}); // y tag and size.
+                                    
+                                    
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+                                 
+  buffer.push(0x01);  // start of y data.                                
+  buffer.push(0x01);        
+  // We are missing one byte here.                     
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+ 
+}
+
+TEST(RepeatedFieldMessage, deserialize_split_after_tag) 
+{
+  repeated_fields<Y_SIZE> msg;
+
+  static constexpr uint32_t SIZE = 9;
+
+  EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
+                                    0x08, 0x01, // x tag and value
+                                    0x12}); // just y tag.
+                                    
+                                    
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0x03);  // y size                                 
+  buffer.push(0x01);  // start of y data.                                
+  buffer.push(0x01);
+  buffer.push(0x01);                                
+  
+  buffer.push(0x18); // z tag
+  buffer.push(0x01); // z value
+
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+
+  EXPECT_EQ(1, msg.get_x());
+  EXPECT_EQ(3, msg.get_y().get_length());
+  EXPECT_EQ(1, msg.y(0));
+  EXPECT_EQ(1, msg.y(1));
+  EXPECT_EQ(1, msg.y(2));
+  EXPECT_EQ(1, msg.get_z());
+
+}
+
+
+TEST(RepeatedFieldMessage, deserialize_split_varint) 
+{
+  repeated_fields<128> msg;
+
+  static constexpr uint32_t SIZE = 133;
+  
+  EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
+                                    0x08, 0x01, // x tag and value
+                                    0x12, 0x80}); // y size is 128 bytes (0x80 0x01)
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));                                    
+
+  buffer.push(0x01); // rest of size
+
+  for(int i = 0; i < 128; ++i) {
+    buffer.push(0x0D); // Push 128 bytes of value 0x0D
+  }
+
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+
+  EXPECT_EQ(1, msg.get_x());
+  EXPECT_EQ(128, msg.get_y().get_length());
+  EXPECT_EQ(13, msg.y(0));
+  EXPECT_EQ(13, msg.y(127));
+}
+
+TEST(RepeatedFieldMessage, deserialize_split_between_elements) 
+{
+  repeated_fields<Y_SIZE> msg;
+
+  static constexpr uint32_t SIZE = 16;
+  
+  EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({  
+                                    0x08, 0x01, // x tag and value
+                                    0x12, 0x0A, 0xFF, 0xFF, 0xFF, 0xFF, 0x07}); // left over y data 
+                                    
+                                    
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0xFF); // Rest of y data
+  buffer.push(0xFF);
+  buffer.push(0xFF);
+  buffer.push(0xFF);
+  buffer.push(0x07);
+  buffer.push(0x18); // z tag           
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));  
+
+  buffer.push(0x01); // z value                  
+  
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+
+  EXPECT_EQ(1, msg.get_x());
+  EXPECT_EQ(2, msg.get_y().get_length());
+  EXPECT_EQ(2147483647, msg.y(0));
+  EXPECT_EQ(2147483647, msg.y(1));
+  EXPECT_EQ(1, msg.get_z());
+}
+
+
 
 TEST(RepeatedFieldMessage, deserialize_one_message_array) 
 {
@@ -422,14 +577,14 @@ TEST(RepeatedFieldMessage, deserialize_one_message_array)
   ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
 
   std::array<uint8_t, SIZE> referee = { 0x08, 0x01, // x
-                                        0x12, 0x00, 0x12, 0x04, 0x08, 0x01, 0x10, 0x01, 0x12, 0x00, // y
+                                        0x12, 0x00, 0x12, 0x04, 0x08, 0x01, 0x10, 0x01, 0x12, 0x00, // b
                                         0x18, 0x01}; // z 
 
   for(auto r: referee) 
   {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -458,17 +613,17 @@ TEST(RepeatedFieldMessage, deserialize_mixed_message_array)
 
   ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
 
-  std::array<uint8_t, SIZE> referee = { 0x12, 0x00, // y[0]
+  std::array<uint8_t, SIZE> referee = { 0x12, 0x00, // b[0]
                                         0x08, 0x01, // x
-                                        0x12, 0x04, 0x08, 0x01, 0x10, 0x01, // y[1]
+                                        0x12, 0x04, 0x08, 0x01, 0x10, 0x01, // b[1]
                                         0x18, 0x01, // z
-                                        0x12, 0x00, }; // y[2] 
+                                        0x12, 0x00, }; // b[2] 
 
   for(auto r: referee) 
   {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -500,9 +655,9 @@ TEST(RepeatedFieldMessage, deserialize_max)
 
   for(auto r: referee) 
   {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -592,9 +747,9 @@ TEST(RepeatedFieldMessage, deserialize_repeated_enum)
 
   for(auto r: referee) 
   {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
+    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
   }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, enum_msg.deserialize(buffer));
   

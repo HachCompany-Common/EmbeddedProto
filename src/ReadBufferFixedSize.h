@@ -33,6 +33,7 @@
 
 #include "ReadBufferInterface.h"
 #include <array>
+#include <initializer_list>
 
 namespace EmbeddedProto 
 {
@@ -48,13 +49,20 @@ namespace EmbeddedProto
       //! The default constructor which initializes everything at zero.
       ReadBufferFixedSize() = default;
 
+      ReadBufferFixedSize(std::initializer_list<uint8_t> init_list)
+      {
+        // TODO static_assert(init_list.size() <= BUFFER_SIZE, "Initializer does not fit in buffer."); 
+        set_bytes_written(init_list.size());
+        std::copy(init_list.begin(), init_list.end(), data_.begin());
+      }
+
       //! The default destructor.
       ~ReadBufferFixedSize() override = default;
 
       //! \see ::EmbeddedProto::ReadBufferInterface::get_size()
       uint32_t get_size() const override
       {
-        return write_index_;
+        return write_index_ - read_index_;
       }
 
       //! \see ::EmbeddedProto::ReadBufferInterface::get_max_size()
@@ -63,13 +71,24 @@ namespace EmbeddedProto
         return BUFFER_SIZE;
       }
 
-      //! \see ::EmbeddedProto::ReadBufferInterface::peak()
+      //! \see ::EmbeddedProto::ReadBufferInterface::peek(uint8_t& byte)
       bool peek(uint8_t& byte) const override
       {
         const bool return_value = write_index_ > read_index_;
         if(return_value)
         {
           byte = data_[read_index_];
+        }
+        return return_value;
+      }
+
+      //! \see ::EmbeddedProto::ReadBufferInterface::peek(const int32_t n, uint8_t& byte)
+      bool peek(const uint32_t n_bytes, uint8_t& byte) const override
+      {
+        const bool return_value = write_index_ > (read_index_ + n_bytes);
+        if(return_value)
+        {
+          byte = data_[read_index_ + n_bytes];
         }
         return return_value;
       }
@@ -86,9 +105,9 @@ namespace EmbeddedProto
       }
 
       //! \see ::EmbeddedProto::ReadBufferInterface::advance(const uint32_t N)
-      bool advance(const uint32_t N) override
+      bool advance(const uint32_t n_bytes) override
       {
-        const uint32_t new_read_index = read_index_ + N;
+        const uint32_t new_read_index = read_index_ + n_bytes;
         const bool return_value = write_index_ >= new_read_index;
         if(return_value)
         {

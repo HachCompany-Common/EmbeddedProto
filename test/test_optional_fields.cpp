@@ -31,6 +31,7 @@
 #include "gtest/gtest.h"
 
 #include <WireFormatter.h>
+#include <ReadBufferFixedSize.h>
 #include <ReadBufferMock.h>
 #include <WriteBufferMock.h>
 
@@ -229,24 +230,14 @@ TEST(OptionalFields, empty_deserialization)
   // Test is empty and default vvalues will set the precense flags.
   ::optional_fields<5,10> msg;
 
-  InSequence s;
-  Mocks::ReadBufferMock buffer;
-
   static constexpr uint32_t SIZE = 15;
 
-  ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
-
-  std::array<uint8_t, SIZE> referee = { 0x10, 0x00, // b
-                                        0x25, 0x00, 0x00, 0x00, 0x00, // y
-                                        0x2a, 0x00,  // pos
-                                        0x30, 0x00,  // state
-                                        0x3a, 0x00,  // bytes_array
-                                        0x42, 0x00}; // str
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(DoAll(SetArgReferee<0>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<SIZE> buffer({ 0x10, 0x00, // b
+                                                      0x25, 0x00, 0x00, 0x00, 0x00, // y
+                                                      0x2a, 0x00,  // pos
+                                                      0x30, 0x00,  // state
+                                                      0x3a, 0x00,  // bytes_array
+                                                      0x42, 0x00}); // str
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -270,9 +261,9 @@ TEST(OptionalFields, cleared_deserialization)
 
   ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
 
-  EXPECT_CALL(buffer, pop(_)).Times(1).WillOnce(Return(false));
+  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
 
-  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
 
   EXPECT_FALSE(msg.has_b());
   EXPECT_FALSE(msg.has_y());

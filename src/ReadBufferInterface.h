@@ -64,6 +64,19 @@ namespace EmbeddedProto
       */
       virtual bool peek(uint8_t& byte) const = 0;
 
+
+      //! Obtain the value of a byte which will be returned after calling pop() N times.
+      /*!
+          This function will not alter the buffer read index.
+          
+          The parameter byte will not be set if the buffer was empty.
+
+          \param[in] n_bytes The number of bytes to read a head.
+          \param[out] byte When the buffer is not empty this variable will hold the oldest value.
+          \return True not exceesing the buffer limits.
+      */
+      virtual bool peek(const uint32_t n_bytes, uint8_t& byte) const = 0;
+
       //! Advances the internal read index by one when the buffer is not empty.
       /*!
           \return True when the buffer was not empty.
