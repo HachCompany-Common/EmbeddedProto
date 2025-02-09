@@ -83,7 +83,7 @@ class MessageInterface : public ::EmbeddedProto::Field
     Error skip_length_delimited(::EmbeddedProto::ReadBufferInterface& buffer) const;
 
 
-    uint32_t n_bytes_to_include_in_section = 0;
+    uint32_t n_bytes_to_include_in_section_ = 0;
 };
 
 } // End of namespace EmbeddedProto

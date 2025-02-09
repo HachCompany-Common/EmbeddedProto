@@ -341,19 +341,19 @@ namespace EmbeddedProto
       {
         Error return_value = Error::NO_ERRORS;
         
-        if(0 == n_bytes_to_include_in_section)
+        if(0 == n_bytes_to_include_in_section_)
         {
-          return_value = WireFormatter::DeserializeVarint(buffer, n_bytes_to_include_in_section);
+          return_value = WireFormatter::DeserializeVarint(buffer, n_bytes_to_include_in_section_);
         }
 
         // If there are no bytes in the array do not start deserializing data.
-        if((Error::NO_ERRORS == return_value) && (0 < n_bytes_to_include_in_section))
+        if((Error::NO_ERRORS == return_value) && (0 < n_bytes_to_include_in_section_))
         {
-          ReadBufferSection bufferSection(buffer, n_bytes_to_include_in_section);
+          ReadBufferSection bufferSection(buffer, n_bytes_to_include_in_section_);
           DATA_TYPE x;
 
           // See how many bytes we will now process from the buffer and thus how many bytes are left for the next iteration.
-          n_bytes_to_include_in_section -= bufferSection.get_size();
+          n_bytes_to_include_in_section_ -= bufferSection.get_size();
         
           return_value = x.deserialize(bufferSection);
           while(Error::NO_ERRORS == return_value)
@@ -365,10 +365,10 @@ namespace EmbeddedProto
             }
           }
 
-          n_bytes_to_include_in_section += bufferSection.get_size();
+          n_bytes_to_include_in_section_ += bufferSection.get_size();
 
           // We expect the buffersection to be empty, in that case everything is fine..
-          if((Error::END_OF_BUFFER == return_value) && (0 == n_bytes_to_include_in_section))
+          if((Error::END_OF_BUFFER == return_value) && (0 == n_bytes_to_include_in_section_))
           {
             return_value = Error::NO_ERRORS;
           }
@@ -386,7 +386,7 @@ namespace EmbeddedProto
         uint32_t index = this->get_length();
 
         // But only allocate that new element if we where not already working on an element.
-        if(0 != n_bytes_to_include_in_section)
+        if(0 != n_bytes_to_include_in_section_)
         {
           // If that is the case use the last element.
           --index;
@@ -398,9 +398,9 @@ namespace EmbeddedProto
           // deserialize.
           if(std::is_base_of<MessageInterface, DATA_TYPE>::value)
           {
-            if(0 == n_bytes_to_include_in_section)
+            if(0 == n_bytes_to_include_in_section_)
             {
-              return_value = WireFormatter::DeserializeVarint(buffer, n_bytes_to_include_in_section);
+              return_value = WireFormatter::DeserializeVarint(buffer, n_bytes_to_include_in_section_);
             }
 
             if(Error::NO_ERRORS == return_value) 
@@ -408,20 +408,20 @@ namespace EmbeddedProto
               // Even if the number of bytes is zero we should allocate the element in the array.
               auto& element = this->get(index);
 
-              if(0 < n_bytes_to_include_in_section)
+              if(0 < n_bytes_to_include_in_section_)
               {
-                ReadBufferSection bufferSection(buffer, n_bytes_to_include_in_section);
+                ReadBufferSection bufferSection(buffer, n_bytes_to_include_in_section_);
 
                 // See how many bytes we will now process from the buffer and thus how many bytes are left for the next iteration.
-                n_bytes_to_include_in_section -= bufferSection.get_size();
+                n_bytes_to_include_in_section_ -= bufferSection.get_size();
 
                 return_value = element.deserialize(bufferSection);
 
-                n_bytes_to_include_in_section += bufferSection.get_size();
+                n_bytes_to_include_in_section_ += bufferSection.get_size();
 
                 // In case we have bytes we still need to receive set the end of buffer return value. 
                 // The return value of deserialize has priority.
-                if((::EmbeddedProto::Error::NO_ERRORS == return_value) && (0 < n_bytes_to_include_in_section))
+                if((::EmbeddedProto::Error::NO_ERRORS == return_value) && (0 < n_bytes_to_include_in_section_))
                 {
                   return_value = ::EmbeddedProto::Error::END_OF_BUFFER;
                 }
@@ -441,7 +441,7 @@ namespace EmbeddedProto
         return return_value;
       }
 
-      uint32_t n_bytes_to_include_in_section = 0;
+      uint32_t n_bytes_to_include_in_section_ = 0;
 
   };
 
