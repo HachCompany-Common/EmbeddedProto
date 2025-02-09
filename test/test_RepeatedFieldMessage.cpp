@@ -521,8 +521,7 @@ TEST(RepeatedFieldMessage, deserialize_split_varint)
   for(int i = 0; i < 128; ++i) {
     buffer.push(0x0D); // Push 128 bytes of value 0x0D
   }
- 
- 
+
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
   EXPECT_EQ(1, msg.get_x());
