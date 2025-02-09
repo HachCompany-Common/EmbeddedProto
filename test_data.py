@@ -246,7 +246,7 @@ def test_repeated_message():
 def test_string():
     msg = sb.text()
 
-    msg.txt = "Foo bar"
+    msg.txt = "Foo bar" * 20
 
     str = ""
     msg_str = msg.SerializeToString()
@@ -372,10 +372,10 @@ def test_optional_empty():
 #test_simple_types()
 #test_repeated_fields()
 #test_repeated_message()
-#test_string()
+test_string()
 #test_bytes()
 #test_repeated_string_bytes()
-test_nested_message()
+#test_nested_message()
 #test_oneof_fields()
 #test_included_proto()
 #test_optional_empty()

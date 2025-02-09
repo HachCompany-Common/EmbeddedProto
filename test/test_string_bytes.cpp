@@ -247,6 +247,55 @@ TEST(FieldString, deserialize)
   EXPECT_STREQ(msg.txt(), "Foo bar");
 }
 
+
+TEST(FieldString, deserialize_partial_in_data) 
+{
+  text<10> msg;
+ 
+  ::EmbeddedProto::ReadBufferFixedSize<9> buffer({0x0a, 0x07, 0x46, 0x6f, 0x6f}); // Split in the data
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0x20);
+  buffer.push(0x62);
+  buffer.push(0x61);
+  buffer.push(0x72);
+
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+  EXPECT_EQ(7, msg.get_txt().get_length());
+  EXPECT_STREQ(msg.txt(), "Foo bar");
+}
+
+TEST(FieldString, deserialize_partial_before_and_in_size) 
+{
+  text<140> msg;
+ 
+  ::EmbeddedProto::ReadBufferFixedSize<150> buffer({0x0a});   // Field tag 
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0x8c); // First byte of length  
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0x01); // Second byte of the length
+
+  for( uint32_t i = 0; i < 20; ++i)
+  {
+    buffer.push(0x46); 
+    buffer.push(0x6f);
+    buffer.push(0x6f);
+    buffer.push(0x20);
+    buffer.push(0x62);
+    buffer.push(0x61);
+    buffer.push(0x72);
+  }
+
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+  EXPECT_EQ(140, msg.get_txt().get_length());
+}
+
+
 TEST(FieldString, deserialize_error_invalid_wiretype) 
 {
   InSequence s;
@@ -462,6 +511,26 @@ TEST(FieldBytes, deserialize)
   raw_bytes<10> msg;
  
   ::EmbeddedProto::ReadBufferFixedSize<6> buffer({0x0a, 0x04, 0x01, 0x02, 0x03, 0x00});
+
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
+  EXPECT_EQ(4, msg.get_b().get_length());
+  EXPECT_EQ(1, msg.get_b()[0]);
+  EXPECT_EQ(2, msg.get_b()[1]);
+  EXPECT_EQ(3, msg.get_b()[2]);
+  EXPECT_EQ(0, msg.get_b()[3]);
+}
+
+TEST(FieldBytes, deserialize_partial) 
+{
+  raw_bytes<10> msg;
+ 
+  ::EmbeddedProto::ReadBufferFixedSize<6> buffer({0x0a, 0x04, 0x01});
+
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
+
+  buffer.push(0x02);
+  buffer.push(0x03);
+  buffer.push(0x00);
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
   EXPECT_EQ(4, msg.get_b().get_length());
