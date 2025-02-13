@@ -102,3 +102,9 @@ message combined_oneof
     string_bytes_oneof msg_sb_oneof = 2;
   }
 }
+
+message oneof_sigle {
+  oneof single_data {
+    int32 single_num = 1;
+  }
+}
