@@ -224,6 +224,7 @@ TEST(OneofField, serialize_second_oneof)
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
 }
 
+
 TEST(OneofField, deserialize) 
 {
   InSequence s;
