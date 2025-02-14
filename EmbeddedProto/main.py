@@ -30,6 +30,8 @@
 
 import io
 import sys
+import locale
+from datetime import datetime
 from EmbeddedProto.ProtoFile import ProtoFile
 from google.protobuf.compiler import plugin_pb2 as plugin
 import jinja2
@@ -89,6 +91,8 @@ def generate_code(request, respones):
     with resource_path("EmbeddedProto", "templates") as filepath:
         template_loader = jinja2.FileSystemLoader(searchpath=filepath)
         template_env = jinja2.Environment(loader=template_loader, trim_blocks=True, lstrip_blocks=True)
+        # Add date and time of generation:
+        template_env.globals['current_date_and_time'] = get_current_date_and_time()
 
     for fd in file_definitions:
         file_str = fd.render(template_env)
@@ -98,6 +102,11 @@ def generate_code(request, respones):
             f.content = file_str
         else:
             break
+
+
+def get_current_date_and_time():
+    locale.setlocale(locale.LC_TIME, '')
+    return datetime.now().strftime('%c')
 
 
 # -----------------------------------------------------------------------------
