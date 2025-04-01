@@ -1,0 +1,41 @@
+{#
+  Copyright (C) 2020-2025 Embedded AMS B.V. - All Rights Reserved
+
+  This file is part of Embedded Proto.
+
+  Embedded Proto is open source software: you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as published
+  by the Free Software Foundation, version 3 of the license.
+
+  Embedded Proto  is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with Embedded Proto. If not, see <https://www.gnu.org/licenses/>.
+
+  For commercial and closed source application please visit:
+  <https://embeddedproto.com/pricing/>.
+
+  Embedded AMS B.V.
+  Info:
+    info at EmbeddedProto dot com
+
+  Postal address:
+    Atoomweg 2
+    1627 LE, Hoorn
+    the Netherlands
+#}
+// {{field.get_variable_name()}}
+auto {{field.get_name()}}_ = msg.{{field.get_name()}}();
+const auto& {{field.get_name()}}_const = msg.get_{{field.get_name()}}();
+const auto& {{field.get_name()}}_const_ref_ = msg.{{ field.get_name() }}();
+if({{field.get_name()}}_const_ref_ == {{field.get_name()}}_) { msg.set_{{ field.get_name() }}({{field.get_name()}}_const); }
+{% if (field.oneof is not none) or field.optional %}
+if( msg.has_{{field.get_name()}}() ) { msg.clear_{{ field.get_name() }}(); }
+{% else %}
+auto& {{field.get_variable_name()}}ref_ = msg.mutable_{{field.get_name()}}();
+{{field.get_variable_name()}}ref_[1] = 4;
+msg.clear_{{ field.get_name() }}();
+{% endif %}

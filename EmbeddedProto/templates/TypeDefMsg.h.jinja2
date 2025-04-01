@@ -491,3 +491,27 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
 #endif // End of MSG_TO_STRING
       {% endfor %}
 };
+
+/*
+
+void test_size_{{ typedef.get_name() }}()
+{
+  {{ typedef.get_name() }}{% for tmpl_param in typedef.get_templates() %}{{"<" if loop.first}}3{{", " if not loop.last}}{{">" if loop.last}}{% endfor %} msg;
+
+  {% for field in typedef.fields %}
+  auto {{field.get_variable_name()}} = msg.{{field.get_name()}}();
+  {% endfor %}
+
+  {% for field in typedef.fields %}
+  const auto& {{field.get_variable_name()}}const = msg.get_{{field.get_name()}}();
+  {% endfor %}
+
+  {% for field in typedef.fields %}
+  auto& {{field.get_variable_name()}}ref = msg.mutable_{{field.get_name()}}();
+  {% endfor %}
+  //{% for oneof in typedef.oneofs %}
+  //{{"+ " if not loop.first or typedef.fields|length != 0}}max_serialized_size_{{oneof.get_name()}}()
+  //{% endfor %}
+
+};
+*/

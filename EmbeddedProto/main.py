@@ -103,6 +103,31 @@ def generate_code(request, respones):
         else:
             break
 
+    test_header_str = ""
+    test_source_str = ""
+    for fd in file_definitions:
+        if "any" == fd.filename_without_folder or "timestamp" == fd.filename_without_folder:
+            continue
+        test_source_str += "#include \"" + fd.filename_without_folder + "__EAMS_size_test.h\"\n"
+        test_source_str += "#include \"" + fd.filename_without_folder + ".h\"\n"
+    test_source_str += "\n"
+
+    for fd in file_definitions:
+        if "any" == fd.filename_without_folder or "timestamp" == fd.filename_without_folder:
+            continue
+        test_header_str += fd.render_test_header(template_env)
+        test_source_str += fd.render_test_source(template_env)
+    
+    if test_header_str:
+      f = respones.file.add()
+      f.name = fd.filename_with_folder + "__EAMS_size_test.h"
+      f.content = test_header_str
+
+    if test_source_str:
+      f = respones.file.add()
+      f.name = fd.filename_with_folder + "__EAMS_size_test.cpp"
+      f.content = test_source_str
+    
 
 def get_current_date_and_time():
     locale.setlocale(locale.LC_TIME, '')

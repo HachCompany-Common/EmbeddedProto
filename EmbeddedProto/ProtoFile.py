@@ -179,6 +179,18 @@ class ProtoFile:
         template = jinja_environment.get_template(template_file)
         file_str = template.render(proto_file=self, environment=jinja_environment)
         return file_str
+    
+    def render_test_header(self, jinja_environment):
+        template_file = "TestFunctions.h.jinja2"
+        template = jinja_environment.get_template(template_file)
+        file_str = template.render(proto_file=self, environment=jinja_environment)
+        return file_str      
+    
+    def render_test_source(self, jinja_environment):
+        template_file = "TestFunctions.cpp.jinja2"
+        template = jinja_environment.get_template(template_file)
+        file_str = template.render(proto_file=self, environment=jinja_environment)
+        return file_str      
 
     def print_template_data(self, indent):
         print(indent + "File: " + self.filename_without_folder)

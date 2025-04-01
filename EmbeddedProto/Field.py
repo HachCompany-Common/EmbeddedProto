@@ -243,6 +243,10 @@ class FieldBasic(Field):
         str = self.render("FieldBasic_Deserialize.h.jinja2", jinja_environment=jinja_env)
         return str.rstrip()
 
+    def render_test(self, jinja_env):
+        return self.render("TestFunctions_FieldBasic.cpp.jinja2", jinja_environment=jinja_env)
+        
+
 # -----------------------------------------------------------------------------
 
 
@@ -281,7 +285,7 @@ class BaseStringBytes(Field):
     def render_deserialize(self, jinja_env):
         str = self.render("FieldBasic_Deserialize.h.jinja2", jinja_environment=jinja_env)
         return str.rstrip()
-
+    
 # -----------------------------------------------------------------------------
 
 
@@ -304,6 +308,9 @@ class FieldString(BaseStringBytes):
     def render_get_set(self, jinja_env):
         return self.render("FieldString_GetSet.h.jinja2", jinja_environment=jinja_env)
 
+    def render_test(self, jinja_env):
+        return self.render("TestFunctions_FieldString.cpp.jinja2", jinja_environment=jinja_env)
+    
 # -----------------------------------------------------------------------------
 
 
@@ -326,6 +333,9 @@ class FieldBytes(BaseStringBytes):
     def render_get_set(self, jinja_env):
         return self.render("FieldBytes_GetSet.h.jinja2", jinja_environment=jinja_env)
 
+    def render_test(self, jinja_env):
+        return self.render("TestFunctions_FieldBytes.cpp.jinja2", jinja_environment=jinja_env)
+    
 # -----------------------------------------------------------------------------
 
 
@@ -401,6 +411,9 @@ class FieldEnum(Field):
     def render_deserialize(self, jinja_env):
         return self.render("FieldEnum_Deserialize.h.jinja2", jinja_environment=jinja_env)
 
+    def render_test(self, jinja_env):
+        return self.render("TestFunctions_FieldEnum.cpp.jinja2", jinja_environment=jinja_env)
+    
 # -----------------------------------------------------------------------------
 
 
@@ -486,6 +499,9 @@ class FieldMessage(Field):
     def render_deserialize(self, jinja_env):
         return self.render("FieldMsg_Deserialize.h.jinja2", jinja_environment=jinja_env)
 
+    def render_test(self, jinja_env):
+        return self.render("TestFunctions_FieldMsg.cpp.jinja2", jinja_environment=jinja_env)
+    
 # -----------------------------------------------------------------------------
 
 
@@ -555,6 +571,9 @@ class FieldRepeated(Field):
         str = self.render("FieldBasic_Deserialize.h.jinja2", jinja_environment=jinja_env)
         return str.rstrip()
 
+    def render_test(self, jinja_env):
+        return self.render("TestFunctions_FieldRepeated.cpp.jinja2", jinja_environment=jinja_env)
+    
 # -----------------------------------------------------------------------------
 
 
@@ -576,3 +595,7 @@ class FieldErrorRecursive(Field):
 
     def render_deserialize(self, jinja_env):
         return ""
+
+    def render_test(self, jinja_env):
+        return ""
+    
