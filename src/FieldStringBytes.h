@@ -279,6 +279,12 @@ namespace EmbeddedProto
           deserialize_n_bytes_available_ = 0;
         }
 
+        void set_max_value() override
+        {
+          data_.fill(255);
+          current_length_ = MAX_LENGTH;
+        }
+
         //! When serialized with the all elements set, how much bytes are then required.
         /*!
           This function takes into account the field number and tag combination.

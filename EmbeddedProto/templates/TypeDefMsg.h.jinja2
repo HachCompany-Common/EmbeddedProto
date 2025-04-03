@@ -276,6 +276,19 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
 
     }
 
+    void set_max_value() override
+    {
+      {% for field in typedef.fields %}
+      {{field.get_variable_name()}}.set_max_value();
+      {% endfor %}
+      {% for oneof in typedef.oneofs %}
+      {% for field in oneof.fields %}
+      init_{{field.get_oneof_name()}}(FieldNumber::{{field.get_variable_id_name()}});
+      {{field.get_variable_name()}}.set_max_value();
+      {% endfor %}
+      {% endfor %}
+    }
+
     static char const* field_number_to_name(const FieldNumber fieldNumber)
     {
       char const* name = nullptr;

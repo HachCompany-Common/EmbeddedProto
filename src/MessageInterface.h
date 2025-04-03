@@ -67,6 +67,8 @@ class MessageInterface : public ::EmbeddedProto::Field
     */
     void clear() override = 0;
     
+    //! Function for testing purposes.
+    void set_max_value() override = 0;
 
   protected:
     //! When deserializing skip the bytes in the buffer of an unknown field.

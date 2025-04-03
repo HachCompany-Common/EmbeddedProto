@@ -105,6 +105,9 @@ namespace EmbeddedProto
       //! Reset the field to it's initial value.
       virtual void clear() = 0;
 
+      //! Function for test puposes, set the maximum values of this field.
+      virtual void set_max_value() = 0;
+
 #ifdef MSG_TO_STRING
       //! Write all the data in this field to a human readable string.
       /*!
@@ -223,6 +226,12 @@ namespace EmbeddedProto
       bool operator<=(const FieldTemplate<FIELDTYPE_RHS, TYPE_RHS, WIRETYPE_RHS, SIZE_RHS>& rhs) { return value_ <= rhs.get(); }
 
       void clear() { value_ = static_cast<VARIABLE_TYPE>(0); }
+
+      void set_max_value()
+      { 
+        // This will give inaccurate results for enums.
+        value_ = std::numeric_limits<VARIABLE_TYPE>::max();
+      }
 
       uint32_t serialized_size() const
       {

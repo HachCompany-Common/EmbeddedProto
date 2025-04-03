@@ -190,6 +190,14 @@ namespace EmbeddedProto
         current_length_ = 0;
       }
 
+      void set_max_value() override
+      {
+        for(auto& d : data_)
+        {
+          d.set_max_value();
+        }
+      }
+
       //! Return a reference to the internal data storage array.
       const std::array<DATA_TYPE, MAX_LENGTH>& get_data_const() const { return data_; }
 
