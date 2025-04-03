@@ -45,6 +45,14 @@ void test_size_{{ typedef.get_name() }}()
   {% endfor %}
   {% endfor %}
 
+  msg.set_max_value();
+
+  EmbeddedProto::WriteBufferFixedSize<1 + ({{ typedef.get_name() }}{% for tmpl_param in typedef.get_templates() %}{{"<" if loop.first}}3{{", " if not loop.last}}{{">" if loop.last}}{% endfor %}::max_serialized_size())> write_buffer;
+  msg.serialize(write_buffer);
+  
+  msg.clear();
+  EmbeddedProto::ReadBufferFixedSize<1 + ({{ typedef.get_name() }}{% for tmpl_param in typedef.get_templates() %}{{"<" if loop.first}}3{{", " if not loop.last}}{{">" if loop.last}}{% endfor %}::max_serialized_size())> read_buffer;
+  msg.deserialize(read_buffer);
 };
 
 {% endfor %}

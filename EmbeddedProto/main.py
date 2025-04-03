@@ -104,7 +104,7 @@ def generate_code(request, respones):
             break
 
     test_header_str = ""
-    test_source_str = ""
+    test_source_str = "#include <ReadBufferFixedSize.h>\n#include <WriteBufferFixedSize.h>\n"
     for fd in file_definitions:
         if "any" == fd.filename_without_folder or "timestamp" == fd.filename_without_folder:
             continue
@@ -118,10 +118,9 @@ def generate_code(request, respones):
         test_header_str += fd.render_test_header(template_env)
         test_source_str += fd.render_test_source(template_env)
     
-    if test_header_str:
-      f = respones.file.add()
-      f.name = fd.filename_with_folder + "__EAMS_size_test.h"
-      f.content = test_header_str
+    f = respones.file.add()
+    f.name = fd.filename_with_folder + "__EAMS_size_test.h"
+    f.content = test_header_str
 
     if test_source_str:
       f = respones.file.add()

@@ -285,6 +285,11 @@ namespace EmbeddedProto
           current_length_ = MAX_LENGTH;
         }
 
+        static constexpr uint32_t max_serialized_size()
+        {
+          return MAX_LENGTH;
+        }
+
         //! When serialized with the all elements set, how much bytes are then required.
         /*!
           This function takes into account the field number and tag combination.
