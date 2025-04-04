@@ -34,8 +34,8 @@
  */
 
 // This file is generated. Please do not edit!
-#ifndef {{proto_file.get_header_guard()}}_H
-#define {{proto_file.get_header_guard()}}_H
+#ifndef _{{proto_file.get_header_guard()}}_H_
+#define _{{proto_file.get_header_guard()}}_H_
 
 #include <cstdint>
 {% if proto_file.msg_definitions %}
@@ -73,4 +73,4 @@ namespace {{ namespace }} {
 {% for namespace in proto_file.get_namespaces()|reverse %}
 } // End of namespace {{ namespace }}
 {% endfor %}
-#endif // {{proto_file.get_header_guard()}}_H
+#endif // _{{proto_file.get_header_guard()}}_H_
