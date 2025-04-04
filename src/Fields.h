@@ -123,7 +123,7 @@ namespace EmbeddedProto
   };
 
   template<Field::FieldTypes FIELDTYPE, class VARIABLE_TYPE, WireFormatter::WireType WIRETYPE, uint32_t MAX_SER_SIZE>
-  class FieldTemplate
+  class FieldTemplate : public Field
   {
     public:
       using TYPE = VARIABLE_TYPE;
@@ -134,9 +134,9 @@ namespace EmbeddedProto
       FieldTemplate(const VARIABLE_TYPE&& v) : value_(v) { };
       FieldTemplate(const CLASS_TYPE& ft) : value_(ft.value_) { };
 
-      ~FieldTemplate() = default;
+      ~FieldTemplate() override = default;
 
-      Error serialize_with_id(uint32_t field_number, WriteBufferInterface& buffer, [[maybe_unused]] const bool optional) const
+      Error serialize_with_id(uint32_t field_number, WriteBufferInterface& buffer, [[maybe_unused]] const bool optional) const override
       {
         Error return_value = WireFormatter::SerializeVarint(WireFormatter::MakeTag(field_number, WIRETYPE), buffer);
         if(Error::NO_ERRORS == return_value)
@@ -146,19 +146,19 @@ namespace EmbeddedProto
         return return_value;
       }   
 
-      Error serialize(WriteBufferInterface& buffer) const
+      Error serialize(WriteBufferInterface& buffer) const override 
       {
         return serialize_<FIELDTYPE>(buffer);
       }
 
-      Error deserialize(ReadBufferInterface& buffer)
+      Error deserialize(ReadBufferInterface& buffer) override 
       {
         return deserialize_<FIELDTYPE>(buffer);
       }
 
       //! \see Field::deserialize()
       Error deserialize_check_type(ReadBufferInterface& buffer, 
-                                   const ::EmbeddedProto::WireFormatter::WireType& wire_type)
+                                   const ::EmbeddedProto::WireFormatter::WireType& wire_type) override
       {
         Error return_value = WIRETYPE == wire_type ? Error::NO_ERRORS : Error::INVALID_WIRETYPE;
         if(Error::NO_ERRORS == return_value) 
@@ -225,7 +225,7 @@ namespace EmbeddedProto
       template<Field::FieldTypes FIELDTYPE_RHS, class TYPE_RHS, WireFormatter::WireType WIRETYPE_RHS, uint32_t SIZE_RHS>
       bool operator<=(const FieldTemplate<FIELDTYPE_RHS, TYPE_RHS, WIRETYPE_RHS, SIZE_RHS>& rhs) { return value_ <= rhs.get(); }
 
-      void clear() { value_ = static_cast<VARIABLE_TYPE>(0); }
+      void clear() override { value_ = static_cast<VARIABLE_TYPE>(0); }
 
       void set_max_value()
       { 
