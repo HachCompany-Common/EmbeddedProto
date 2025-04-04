@@ -13,7 +13,7 @@ def find_header_files(search_path, pattern="*_EAMS_size_test.h"):
 
 def extract_functions(header_file):
     """Extract function names from a header file (only void functions with no parameters)."""
-    function_pattern = re.compile(r'\bvoid\s+(\w+)\s*\(\s*\)\s*;')  # Match `void func();`
+    function_pattern = re.compile(r'\bvoid\s+(\w+)\s*\(\s*\)\s*')  # Match `void func();`
     functions = []
     with open(header_file, 'r', encoding='utf-8') as file:
         for line in file:

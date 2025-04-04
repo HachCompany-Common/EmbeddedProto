@@ -27,7 +27,48 @@
     1627 LE, Hoorn
     the Netherlands
 #}
+#ifndef _{{proto_file.get_header_guard()}}__EAMS_SIZE_TEST_H_
+#define _{{proto_file.get_header_guard()}}__EAMS_SIZE_TEST_H_
+
+#include <ReadBufferFixedSize.h>
+#include <WriteBufferFixedSize.h>
+
+#include "{{ proto_file.filename_without_folder }}.h"
+{% if proto_file.get_dependencies() is defined %}
+// Include external proto definitions
+{% for dependency in proto_file.get_dependencies() %}
+#include "{{dependency}}"
+{% endfor %}
+{% endif %}
+
 {% for typedef in proto_file.msg_definitions %}
-void test_size_{{ typedef.get_name() }}();
+void test_size_{{ typedef.get_name() }}()
+{
+  {% for namespace in proto_file.get_namespaces() %}{{"  using namespace " if loop.first}}{{namespace}}{{"::" if not loop.last}}{{";" if loop.last}}{% endfor %}
+  
+  {{ typedef.get_name() }}{% for tmpl_param in typedef.get_templates() %}{{"<" if loop.first}}3{{", " if not loop.last}}{{">" if loop.last}}{% endfor %} msg;
+  
+  {% for field in typedef.fields %}
+  {{ field.render_test(environment)|indent(2) }}
+  
+  {% endfor %}
+  {% for oneof in typedef.oneofs %}
+  {% for field in oneof.get_fields() %}
+  {{ field.render_test(environment)|indent(2) }}
+  
+  {% endfor %}
+  {% endfor %}
+
+  msg.set_max_value();
+
+  EmbeddedProto::WriteBufferFixedSize<1 + ({{ typedef.get_name() }}{% for tmpl_param in typedef.get_templates() %}{{"<" if loop.first}}3{{", " if not loop.last}}{{">" if loop.last}}{% endfor %}::max_serialized_size())> write_buffer;
+  msg.serialize(write_buffer);
+  
+  msg.clear();
+  EmbeddedProto::ReadBufferFixedSize<1 + ({{ typedef.get_name() }}{% for tmpl_param in typedef.get_templates() %}{{"<" if loop.first}}3{{", " if not loop.last}}{{">" if loop.last}}{% endfor %}::max_serialized_size())> read_buffer;
+  msg.deserialize(read_buffer);
+};
 
 {% endfor %}
+
+#endif // _{{proto_file.get_header_guard()}}__EAMS_SIZE_TEST_H_
