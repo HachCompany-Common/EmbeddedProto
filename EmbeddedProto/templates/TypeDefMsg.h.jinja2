@@ -198,9 +198,25 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
 
     ::EmbeddedProto::Error deserialize(::EmbeddedProto::ReadBufferInterface& buffer) override
     {
-      ::EmbeddedProto::Error return_value = ::EmbeddedProto::Error::NO_ERRORS;
-      FieldNumber id_tag = FieldNumber::NOT_SET;
+      //::EmbeddedProto::Error return_value = ::EmbeddedProto::Error::NO_ERRORS;
+      //uint32_t id_tag = FieldNumber::NOT_SET;
 
+      {% if typedef.fields|length > 0 %}
+      std::array<FieldReference, {{typedef.fields|length}}> fields = {
+        {% for field in typedef.fields %}
+        FieldReference({{field.get_variable_name()}}, static_cast<uint32_t>(FieldNumber::{{field.get_variable_id_name()}})){{"," if not loop.last }}
+        {% endfor %}
+      };
+
+      const auto fields_begin = fields.begin();
+      const auto fields_end = fields.end();
+      return deserialize_field_list(buffer, fields_begin, fields_end, deserialize_id_number_);
+      {% else %}
+      (void)buffer;
+      return ::EmbeddedProto::Error::NO_ERRORS;
+      {% endif %}
+
+/*
       // If we did not already deserialize a tag, obtain the next one. When we did remember a tag 
       // have been deserializing a field which was not yet fully received in the read buffer.
       if(0 == deserialize_id_number_)
@@ -261,6 +277,7 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
       }
 
       return return_value;
+      */
     };
 
     void clear() override

@@ -71,6 +71,88 @@ class MessageInterface : public ::EmbeddedProto::Field
     void set_max_value() override = 0;
 
   protected:
+
+    class FieldReference
+    {
+      public:
+        FieldReference(Field& f, uint32_t fn) : field(f), field_number(fn), present(false) {}
+
+        Field& field;
+        uint32_t field_number;
+        bool present;
+
+      private:
+        FieldReference() = default;
+    };
+
+    /*!
+      \param[in/out] deserialize_id_number the deserialize state of the derived class.
+    */
+    Error deserialize_field_list(::EmbeddedProto::ReadBufferInterface& buffer, const auto& begin, const auto& end, uint32_t& deserialize_id_number)
+    {
+      ::EmbeddedProto::Error return_value = ::EmbeddedProto::Error::NO_ERRORS;
+      uint32_t id_tag = 0; // FieldNumber::NOT_SET;
+      ::EmbeddedProto::WireFormatter::WireType deserialize_wire_type_;
+
+
+      // If we did not already deserialize a tag, obtain the next one. When we did remember a tag 
+      // have been deserializing a field which was not yet fully received in the read buffer.
+      if(0 == deserialize_id_number)
+      {
+        return_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, deserialize_wire_type_, deserialize_id_number);
+      }
+ 
+      bool continue_deserializing = ::EmbeddedProto::Error::NO_ERRORS == return_value;
+      while(continue_deserializing)
+      {
+        auto field_it = begin;
+        while(end != field_it) 
+        { 
+          if(deserialize_id_number == field_it->field_number)
+          {
+            break; // stop the loop.
+          }
+          else 
+          {
+            ++field_it;
+          }
+        }
+        
+        if(end != field_it)
+        {
+          return_value = field_it->field.deserialize_check_type(buffer, deserialize_wire_type_);
+        }
+        else
+        {
+          return_value = skip_unknown_field(buffer, deserialize_wire_type_);
+        }
+
+        if(::EmbeddedProto::Error::NO_ERRORS == return_value)
+        {
+          // Read the next tag but first reset the state such that in the case of an error reading 
+          // the tag we will try again on the next call of this function.
+          deserialize_id_number = 0;
+          return_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, deserialize_wire_type_, deserialize_id_number);
+        
+          if(::EmbeddedProto::Error::NO_ERRORS != return_value)
+          {
+            // If we reached the end of the buffer here assume the message is complete.
+            if(::EmbeddedProto::Error::END_OF_BUFFER == return_value)
+            {
+              return_value = ::EmbeddedProto::Error::NO_ERRORS;
+            }
+            continue_deserializing = false;
+          }
+        }
+        else
+        {
+          continue_deserializing = false;
+        }        
+      }
+
+      return return_value;
+    };
+
     //! When deserializing skip the bytes in the buffer of an unknown field.
     /*! 
         This function is used when a field with an unknown id is encountered to move through the 
