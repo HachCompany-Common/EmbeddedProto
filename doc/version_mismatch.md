@@ -50,9 +50,9 @@ The core library version is defined in `src/Version.h`:
 ### Generated Code Version
 Each generated header file includes version information:
 ```cpp
-#define EMBEDDEDPROTO_VERSION_MAJOR 4
-#define EMBEDDEDPROTO_VERSION_MINOR 0
-#define EMBEDDEDPROTO_VERSION_PATCH 0
+#define EMBEDDEDPROTO_VERSION_MAJOR A
+#define EMBEDDEDPROTO_VERSION_MINOR B
+#define EMBEDDEDPROTO_VERSION_PATCH C
 ```
 
 ## Resolving Version Conflicts
