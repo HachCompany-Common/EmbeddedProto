@@ -34,12 +34,17 @@ The system performs different levels of checks based on the version component:
 ### Core Library Version
 The core library version is defined in `src/Version.h`:
 ```cpp
-namespace EmbeddedProto {
-    constexpr char VERSION_MAJOR = 4;
-    constexpr char VERSION_MINOR = 0;
-    constexpr char VERSION_PATCH = 0;
-    constexpr const char* VERSION_STRING = "4.0.0";
-}
+//! The major version number of the Embedded Proto library.
+#define EMBEDDEDPROTO_VERSION_MAJOR X
+
+//! The minor version number of the Embedded Proto library.
+#define EMBEDDEDPROTO_VERSION_MINOR Y
+
+//! The patch version number of the Embedded Proto library.
+#define EMBEDDEDPROTO_VERSION_PATCH Z
+
+//! The complete version string of the Embedded Proto library.
+#define EMBEDDEDPROTO_VERSION_STRING "X.Y.Z"
 ```
 
 ### Generated Code Version
@@ -89,16 +94,15 @@ If you receive a minor version mismatch warning:
 
 ```cpp
 // Library version (Version.h)
-namespace EmbeddedProto {
-    constexpr char VERSION_MAJOR = 4;
-    constexpr char VERSION_MINOR = 0;
-    constexpr char VERSION_PATCH = 0;
-}
+#define EMBEDDEDPROTO_VERSION_MAJOR X
+#define EMBEDDEDPROTO_VERSION_MINOR Y
+#define EMBEDDEDPROTO_VERSION_PATCH Z
+#define EMBEDDEDPROTO_VERSION_STRING "X.Y.Z"
 
-// Generated code version
-#define EMBEDDEDPROTO_VERSION_MAJOR 4  // Must match
-#define EMBEDDEDPROTO_VERSION_MINOR 0  // Warning if mismatch
-#define EMBEDDEDPROTO_VERSION_PATCH 1  // Ignored if mismatch
+// Generated code version (in generated header)
+#define EMBEDDEDPROTO_VERSION_MAJOR A  // Must match
+#define EMBEDDEDPROTO_VERSION_MINOR B  // Warning if mismatch
+#define EMBEDDEDPROTO_VERSION_PATCH C  // Ignored if mismatch
 ```
 
 ## Further Information
