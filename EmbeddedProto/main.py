@@ -31,11 +31,24 @@
 import io
 import sys
 import locale
+import json
 from datetime import datetime
 from EmbeddedProto.ProtoFile import ProtoFile
 from google.protobuf.compiler import plugin_pb2 as plugin
 import jinja2
 from importlib.resources import path as resource_path
+
+def load_version_info():
+    """Load version information from version.json"""
+    with resource_path("EmbeddedProto", "version.json") as filepath:
+        with open(filepath) as f:
+            version_data = json.load(f)
+            version_parts = version_data["version"].split(".")
+            return {
+                "major": int(version_parts[0]),
+                "minor": int(version_parts[1]),
+                "patch": int(version_parts[2])
+            }
 
 
 # -----------------------------------------------------------------------------
@@ -88,11 +101,17 @@ def generate_code(request, respones):
         raise Exception("Messages with repeated, string or byte fields use template parameters to define their length."
                         "For some reason it was not to add all required template parameters.")
 
+    # Load version information
+    version_info = load_version_info()
+
     with resource_path("EmbeddedProto", "templates") as filepath:
         template_loader = jinja2.FileSystemLoader(searchpath=filepath)
         template_env = jinja2.Environment(loader=template_loader, trim_blocks=True, lstrip_blocks=True)
-        # Add date and time of generation:
+        # Add date, time and version information:
         template_env.globals['current_date_and_time'] = get_current_date_and_time()
+        template_env.globals['version_major'] = version_info['major']
+        template_env.globals['version_minor'] = version_info['minor']
+        template_env.globals['version_patch'] = version_info['patch']
 
     for fd in file_definitions:
         file_str = fd.render(template_env)
