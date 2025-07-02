@@ -162,7 +162,7 @@ def get_version():
 
         elif re.fullmatch(r'release/\d+\.\d+\.\d+', branch_name):
             # Release candidate version
-            base_branch = 'develop'  # Release candidates are branched of develop.
+            base_branch = 'origin/develop'  # Release candidates are branched of develop.
             print(f"Debug: Detected release branch, using '{base_branch}' as base branch")
             rc_number = get_unique_commit_count(base_branch)
             full_version = f"{base_version}rc{rc_number}"
@@ -187,3 +187,9 @@ setup(
     },
     version=get_version(),
 )
+
+
+####################################################################################
+
+if __name__ == "__main__":
+    get_version()
