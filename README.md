@@ -27,6 +27,9 @@ This document details the following:
 
 To stay up to date, signup for our [User Update](https://EmbeddedProto.com/signup).
  
+## 4.0.0
+* Dummy commit to test rcN increments.
+
 ## 3.5.3 
 * Fixed build problems in release 3.5.3.
 
