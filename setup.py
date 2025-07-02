@@ -65,8 +65,10 @@ class Sdist(sdist):
         super().run()
 
 def get_current_branch():
+    print("Debug: Entering get_current_branch()")
     try:
         # Try the normal git command first
+        print("Debug: Running git rev-parse --abbrev-ref HEAD")
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             capture_output=True,
@@ -74,38 +76,61 @@ def get_current_branch():
             check=True
         )
         branch = result.stdout.strip()
+        print(f"Debug: git rev-parse result: '{branch}'")
+        
         # In GitHub Actions, this might return "HEAD" for detached HEAD state
         if branch == "HEAD" and os.getenv('GITHUB_ACTIONS') == 'true':
+            print("Debug: Detected HEAD in GitHub Actions, using GITHUB_REF")
             # Use GITHUB_REF to determine the branch or tag
             github_ref = os.getenv('GITHUB_REF', '')
+            print(f"Debug: GITHUB_REF = '{github_ref}'")
+            
             if github_ref.startswith('refs/heads/'):
-                return github_ref.replace('refs/heads/', '')
+                branch_name = github_ref.replace('refs/heads/', '')
+                print(f"Debug: Extracted branch name from GITHUB_REF: '{branch_name}'")
+                return branch_name
             elif github_ref.startswith('refs/tags/'):
+                print("Debug: GITHUB_REF is a tag, assuming master branch")
                 return 'master'  # Assume tags are created from master
             else:
+                print("Debug: GITHUB_REF format not recognized, defaulting to develop")
                 return 'develop'  # Default
+        
+        print(f"Debug: Returning branch name: '{branch}'")
         return branch
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        print(f"Debug: Error in git rev-parse: {e}")
         # If git command fails, try to use GitHub environment variables
         if os.getenv('GITHUB_ACTIONS') == 'true':
             github_ref = os.getenv('GITHUB_REF', '')
+            print(f"Debug: In GitHub Actions, GITHUB_REF = '{github_ref}'")
+            
             if github_ref.startswith('refs/heads/'):
-                return github_ref.replace('refs/heads/', '')
+                branch_name = github_ref.replace('refs/heads/', '')
+                print(f"Debug: Extracted branch name from GITHUB_REF: '{branch_name}'")
+                return branch_name
             elif github_ref.startswith('refs/tags/'):
+                print("Debug: GITHUB_REF is a tag, assuming master branch")
                 return 'master'  # Assume tags are created from master
+        
         # Default fallback
+        print("Debug: No branch information found, defaulting to develop")
         return 'develop'
 
 def get_unique_commit_count(base_branch="main"):
     try:
+        print(f"Debug: Counting commits between {base_branch} and HEAD")
         result = subprocess.run(
             ["git", "rev-list", "--count", f"{base_branch}..HEAD"],
             capture_output=True,
             text=True,
             check=True
         )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
+        count = result.stdout.strip()
+        print(f"Debug: Commit count result: '{count}'")
+        return count
+    except subprocess.CalledProcessError as e:
+        print(f"Debug: Error in get_unique_commit_count: {e}")
         # If the git command fails, return a default value
         return "0"
 
@@ -113,30 +138,40 @@ def get_version():
     try:
         version_file = 'EmbeddedProto/version.json'
         build_number = os.getenv('GITHUB_RUN_NUMBER', '0')
+        print(f"Debug: GITHUB_RUN_NUMBER = '{build_number}'")
+        print(f"Debug: GITHUB_REF = '{os.getenv('GITHUB_REF', 'not set')}'")
+        print(f"Debug: GITHUB_SHA = '{os.getenv('GITHUB_SHA', 'not set')}'")
 
         try:
             with open(version_file, 'r') as f:
                 version_data = json.load(f)
             base_version = version_data.get('version', '0.0.0')
-        except (FileNotFoundError, json.JSONDecodeError):
+            print(f"Debug: Base version from version.json: '{base_version}'")
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Debug: Error reading version.json: {e}")
             # Fallback if version file is missing or invalid
             base_version = '0.0.0'
 
         branch_name = get_current_branch()
+        print(f"Debug: Detected branch name: '{branch_name}'")
 
         if branch_name == "master":
             # Final release version (no suffix)
             full_version = base_version
+            print(f"Debug: Using master version: '{full_version}'")
 
         elif re.fullmatch(r'release/\d+\.\d+\.\d+', branch_name):
             # Release candidate version
             base_branch = 'develop'  # Release candidates are branched of develop.
+            print(f"Debug: Detected release branch, using '{base_branch}' as base branch")
             rc_number = get_unique_commit_count(base_branch)
             full_version = f"{base_version}rc{rc_number}"
+            print(f"Debug: Using release candidate version: '{full_version}'")
 
         else:
             # Development or feature branch
             full_version = f"{base_version}.dev{build_number}"
+            print(f"Debug: Using development version: '{full_version}'")
 
         return full_version
     except Exception as e:
