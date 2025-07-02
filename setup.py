@@ -117,22 +117,6 @@ def get_current_branch():
         print("Debug: No branch information found, defaulting to develop")
         return 'develop'
 
-def get_unique_commit_count(base_branch="main"):
-    try:
-        print(f"Debug: Counting commits between {base_branch} and HEAD")
-        result = subprocess.run(
-            ["git", "rev-list", "--count", f"{base_branch}..HEAD"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        count = result.stdout.strip()
-        print(f"Debug: Commit count result: '{count}'")
-        return count
-    except subprocess.CalledProcessError as e:
-        print(f"Debug: Error in get_unique_commit_count: {e}")
-        # If the git command fails, return a default value
-        return "0"
 
 def get_version():
     try:
@@ -162,10 +146,9 @@ def get_version():
 
         elif re.fullmatch(r'release/\d+\.\d+\.\d+', branch_name):
             # Release candidate version
-            base_branch = 'origin/develop'  # Release candidates are branched of develop.
-            print(f"Debug: Detected release branch, using '{base_branch}' as base branch")
-            rc_number = get_unique_commit_count(base_branch)
-            full_version = f"{base_version}rc{rc_number}"
+            build_number = os.getenv('GITHUB_RUN_NUMBER', '0')
+            print(f"Debug: Detected release branch, using GITHUB_RUN_NUMBER '{build_number}' for rc suffix")
+            full_version = f"{base_version}rc{build_number}"
             print(f"Debug: Using release candidate version: '{full_version}'")
 
         else:
