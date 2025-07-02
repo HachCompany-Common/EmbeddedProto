@@ -36,7 +36,7 @@ from setuptools import setup
 import subprocess
 import os
 import json
-import sys
+import re
 
 
 def build_proto():
@@ -64,6 +64,24 @@ class Sdist(sdist):
         build_proto()
         super().run()
 
+def get_current_branch():
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    return result.stdout.strip()
+
+def get_unique_commit_count(base_branch="main"):
+    result = subprocess.run(
+        ["git", "rev-list", "--count", f"{base_branch}..HEAD"],
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    return result.stdout.strip()
+
 def get_version():
     version_file = 'EmbeddedProto/version.json'
     build_number = os.getenv('GITHUB_RUN_NUMBER', '0')
@@ -72,7 +90,22 @@ def get_version():
         version_data = json.load(f)
 
     base_version = version_data.get('version', '0.0.0')
-    full_version = f"{base_version}.dev{build_number}"
+    branch_name = get_current_branch()
+
+    if branch_name == "master":
+        # Final release version (no suffix)
+        full_version = base_version
+
+    elif re.fullmatch(r'release/\d+\.\d+\.\d+', branch_name):
+        # Release candidate version
+        base_branch = 'develop'  # Release candidates are branched of develop.
+        rc_number = get_unique_commit_count(base_branch)
+        full_version = f"{base_version}rc{rc_number}"
+
+    else:
+        # Development or feature branch
+        full_version = f"{base_version}.dev{build_number}"
+
     return full_version
 
 
