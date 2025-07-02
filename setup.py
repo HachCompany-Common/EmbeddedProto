@@ -65,48 +65,84 @@ class Sdist(sdist):
         super().run()
 
 def get_current_branch():
-    result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=True
-    )
-    return result.stdout.strip()
+    try:
+        # Try the normal git command first
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        branch = result.stdout.strip()
+        # In GitHub Actions, this might return "HEAD" for detached HEAD state
+        if branch == "HEAD" and os.getenv('GITHUB_ACTIONS') == 'true':
+            # Use GITHUB_REF to determine the branch or tag
+            github_ref = os.getenv('GITHUB_REF', '')
+            if github_ref.startswith('refs/heads/'):
+                return github_ref.replace('refs/heads/', '')
+            elif github_ref.startswith('refs/tags/'):
+                return 'master'  # Assume tags are created from master
+            else:
+                return 'develop'  # Default
+        return branch
+    except subprocess.CalledProcessError:
+        # If git command fails, try to use GitHub environment variables
+        if os.getenv('GITHUB_ACTIONS') == 'true':
+            github_ref = os.getenv('GITHUB_REF', '')
+            if github_ref.startswith('refs/heads/'):
+                return github_ref.replace('refs/heads/', '')
+            elif github_ref.startswith('refs/tags/'):
+                return 'master'  # Assume tags are created from master
+        # Default fallback
+        return 'develop'
 
 def get_unique_commit_count(base_branch="main"):
-    result = subprocess.run(
-        ["git", "rev-list", "--count", f"{base_branch}..HEAD"],
-        capture_output=True,
-        text=True,
-        check=True
-    )
-    return result.stdout.strip()
+    try:
+        result = subprocess.run(
+            ["git", "rev-list", "--count", f"{base_branch}..HEAD"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        # If the git command fails, return a default value
+        return "0"
 
 def get_version():
-    version_file = 'EmbeddedProto/version.json'
-    build_number = os.getenv('GITHUB_RUN_NUMBER', '0')
+    try:
+        version_file = 'EmbeddedProto/version.json'
+        build_number = os.getenv('GITHUB_RUN_NUMBER', '0')
 
-    with open(version_file, 'r') as f:
-        version_data = json.load(f)
+        try:
+            with open(version_file, 'r') as f:
+                version_data = json.load(f)
+            base_version = version_data.get('version', '0.0.0')
+        except (FileNotFoundError, json.JSONDecodeError):
+            # Fallback if version file is missing or invalid
+            base_version = '0.0.0'
 
-    base_version = version_data.get('version', '0.0.0')
-    branch_name = get_current_branch()
+        branch_name = get_current_branch()
 
-    if branch_name == "master":
-        # Final release version (no suffix)
-        full_version = base_version
+        if branch_name == "master":
+            # Final release version (no suffix)
+            full_version = base_version
 
-    elif re.fullmatch(r'release/\d+\.\d+\.\d+', branch_name):
-        # Release candidate version
-        base_branch = 'develop'  # Release candidates are branched of develop.
-        rc_number = get_unique_commit_count(base_branch)
-        full_version = f"{base_version}rc{rc_number}"
+        elif re.fullmatch(r'release/\d+\.\d+\.\d+', branch_name):
+            # Release candidate version
+            base_branch = 'develop'  # Release candidates are branched of develop.
+            rc_number = get_unique_commit_count(base_branch)
+            full_version = f"{base_version}rc{rc_number}"
 
-    else:
-        # Development or feature branch
-        full_version = f"{base_version}.dev{build_number}"
+        else:
+            # Development or feature branch
+            full_version = f"{base_version}.dev{build_number}"
 
-    return full_version
+        return full_version
+    except Exception as e:
+        # Last resort fallback in case of any unexpected errors
+        print(f"Warning: Error determining version: {e}")
+        return '0.0.0.dev0'
 
 
 setup(
