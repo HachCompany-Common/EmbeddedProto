@@ -427,6 +427,9 @@ TEST(OneofField, sb_oneof_serialize_empty)
 
 }
 
+
+#ifndef DISABLE_FIELD_NUMBER_TO_NAME 
+
 TEST(OneofField, field_number_to_name)
 {
   EXPECT_TRUE(0 == strcmp(::message_oneof::field_number_to_name(::message_oneof::FieldNumber::X),
@@ -438,6 +441,8 @@ TEST(OneofField, field_number_to_name)
   EXPECT_TRUE(0 == strcmp(::message_oneof::field_number_to_name(::message_oneof::FieldNumber::MSG_ABC),
                           "msg_ABC"));
 }
+
+#endif
 
 
 #ifdef MSG_TO_STRING

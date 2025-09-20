@@ -50,6 +50,14 @@ message NestedConfigUpdate {
   ConfigUpdate update = 1;
 }
 
+message NestedConfigUpdateRepeated {
+  repeated ConfigUpdate update = 1;
+}
+
+message NestedConfigUpdateRepeatedMaxLength {
+  repeated ConfigUpdate update = 1 [(EmbeddedProto.options).maxLength = 3];
+}
+
 message BytesMaxLength {
   bytes b = 1 [(EmbeddedProto.options).maxLength = 100];
 }

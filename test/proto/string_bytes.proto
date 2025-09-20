@@ -32,6 +32,8 @@
 
 syntax = "proto3";
 
+import "embedded_proto_options.proto";
+
 message text
 {
   string txt = 1;
@@ -65,3 +67,30 @@ message repeated_string_bytes
   raw_bytes nested_bytes = 4;
 }
 
+message repeated_string_with_lengths {
+  repeated string array_of_txt = 1 [(EmbeddedProto.options).maxLength = 3, (EmbeddedProto.options).nestedMaxLength = 10];
+}
+
+message repeated_bytes_with_lengths {
+  repeated bytes array_of_bytes = 1 [(EmbeddedProto.options).maxLength = 3, (EmbeddedProto.options).nestedMaxLength = 10];
+}
+
+// Test case 1: maxLength defined but nestedMaxLength not
+// This should result in a C++ template parameter for the string/bytes
+message repeated_string_max_only {
+  repeated string array_of_txt = 1 [(EmbeddedProto.options).maxLength = 3];
+}
+
+message repeated_bytes_max_only {
+  repeated bytes array_of_bytes = 1 [(EmbeddedProto.options).maxLength = 3];
+}
+
+// Test case 2: nestedMaxLength defined but maxLength not
+// This should result in a C++ template parameter for the array
+message repeated_string_nested_only {
+  repeated string array_of_txt = 1 [(EmbeddedProto.options).nestedMaxLength = 10];
+}
+
+message repeated_bytes_nested_only {
+  repeated bytes array_of_bytes = 1 [(EmbeddedProto.options).nestedMaxLength = 10];
+}

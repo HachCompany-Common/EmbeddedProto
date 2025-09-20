@@ -584,6 +584,8 @@ TEST(SimpleTypes, deserialize_fault_overlong_varint)
   EXPECT_EQ(::EmbeddedProto::Error::OVERLONG_VARINT, msg.deserialize(buffer));
 }
 
+#ifndef DISABLE_FIELD_NUMBER_TO_NAME 
+
 TEST(SimpleTypes, field_number_to_name)
 {
   EXPECT_TRUE(0 == strcmp(::Test_Simple_Types::field_number_to_name(::Test_Simple_Types::FieldNumber::A_INT32),
@@ -598,6 +600,8 @@ TEST(SimpleTypes, field_number_to_name)
   EXPECT_TRUE(0 == strcmp(::Test_Simple_Types::field_number_to_name(static_cast<::Test_Simple_Types::FieldNumber>(99)),
                           "Invalid FieldNumber"));
 }
+
+#endif
 
 #ifdef MSG_TO_STRING
 
