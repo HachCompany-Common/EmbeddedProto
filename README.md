@@ -26,7 +26,12 @@ This document details the following:
 # What is new
 
 To stay up to date, signup for our [User Update](https://EmbeddedProto.com/signup).
- 
+
+## 3.6.0
+* Update to Protobuf version 32.0.
+* Increated the minimum python version to 3.10.
+* Added EmbeddedProto options to allow setting the size of the string (or bytes) field in when it is also repeated, example: `repeated string str = 1 [(EmbeddedProto.options).maxLength = 3, (EmbeddedProto.options).nestedMaxLength = 10];`.
+
 ## 3.5.3 
 * Fixed build problems in release 3.5.3.
 
@@ -90,9 +95,9 @@ You can request more information about a commercial license on our [website](htt
 # Installation
 
 What is required to be able to generate source files based on .proto files:
-1. Python 3.8 and up
+1. Python 3.10 and up
 2. Pip
-3. Protobuf v21.5 and up (tested with v26.1)
+3. Protobuf v32.0
 4. Git
 
 After installing the requirements, continue by cloning the Embedded Proto repo. We advised using Embedded Proto as a submodule in your project. This way, you can track the version of Embedded Proto with the version of your project.
@@ -108,9 +113,9 @@ python setup.py
 ```
 Did you install protoc in a custom folder, or is the include folder of protobuf not in your path? In these cases, you may get an error from the setup script. You have to provide the location of the include with the --include parameter:
 ```bash
-python setup.py --include ~/protobuf/protoc-21.5/include
+python setup.py --include ~/protobuf/protoc-32.0/include
 ```
-In this example, you have installed a specific version of protoc, and you named its installation folder `~/protobuf/protoc-21.5`.
+In this example, you have installed a specific version of protoc, and you named its installation folder `~/protobuf/protoc-32.0`.
 
 You can check out latest the command line parameters of the setup script using the help parameter:
 ```bash

@@ -256,8 +256,24 @@ class BaseStringBytes(Field):
 
         # Find options we know and use in this type of field.
         self.MaxLength = None
+
         if self.descriptor.options.HasExtension(embedded_proto_options_pb2.options):
-            self.MaxLength = self.descriptor.options.Extensions[embedded_proto_options_pb2.options].maxLength
+            options = self.descriptor.options.Extensions[embedded_proto_options_pb2.options]
+            
+            # Determine which maxLength to use based on context
+            # If we're in a repeated field, use nestedMaxLength, if not present create a C++ template parameter.
+            # If we're not in a repeated field, use maxLength, if not present create a C++ template parameter.
+            # Check if this field is part of a repeated field by looking at the parent's descriptor
+            is_in_repeated = proto_descriptor.label == FieldDescriptorProto.LABEL_REPEATED
+
+            if is_in_repeated:
+                if options.nestedMaxLength:
+                    self.MaxLength = options.nestedMaxLength
+                else:
+                    self.MaxLength = None
+            else:
+                # For non-repeated fields, just use maxLength
+                self.MaxLength = options.maxLength
 
     def get_wire_type_str(self):
         return "LENGTH_DELIMITED"
@@ -540,10 +556,21 @@ class FieldRepeated(Field):
         self.actual_type.match_field_with_definitions(all_types_definitions)
 
     def register_template_parameters(self):
+        result = True
+        
+        # Check for the special case where a string or bytes field is nested in the repeated field.
+        string_or_bytes_field = (FieldDescriptorProto.TYPE_STRING == self.actual_type.descriptor.type) or \
+          (FieldDescriptorProto.TYPE_BYTES == self.actual_type.descriptor.type)
+        
         # If we do not have a max length defined register the template parameter.
-        if not self.MaxLength:
+        if not self.MaxLength or (string_or_bytes_field and not self.actual_type.MaxLength):
             self.parent.register_child_with_template(self)
-        return True
+
+        # Check if field in the array is of a message type which might have template parameters.
+        elif FieldDescriptorProto.TYPE_MESSAGE == self.actual_type.descriptor.type:
+            result = self.actual_type.register_template_parameters()
+
+        return result
 
     def render_get_set(self, jinja_env):
         return self.render("FieldRepeated_GetSet.h.jinja2", jinja_environment=jinja_env)

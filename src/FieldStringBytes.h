@@ -292,6 +292,17 @@ namespace EmbeddedProto
                   + WireFormatter::VarintSize(WireFormatter::MakeTag(field_number, 
                                                                      WireFormatter::WireType::LENGTH_DELIMITED)); // The field and tag comby
         }
+
+        //! When serialized with the all elements set, how much bytes are then required.
+        /*!
+          This function is used when the field bytes or string is serialized packed. Think in a repeated field.
+          \return The number of bytes required at most.
+        */
+        static constexpr uint32_t max_serialized_size()
+        {
+          return MAX_LENGTH // The number of bytes of the data.
+                  + WireFormatter::VarintSize(MAX_LENGTH); // The varint indicating the actual number of bytes.
+        }
        
       protected:
 

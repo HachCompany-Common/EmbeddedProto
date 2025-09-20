@@ -773,6 +773,8 @@ TEST(RepeatedStringBytes, deserialize)
   EXPECT_STREQ(msg.array_of_txt(2).get_const(), "Foo bar 3"); 
 }
 
+#ifndef DISABLE_FIELD_NUMBER_TO_NAME 
+
 TEST(RepeatedStringBytes, field_number_to_name)
 {
   using RSB = repeated_string_bytes<3, 15, 3, 15, 3, 3>;
@@ -784,6 +786,8 @@ TEST(RepeatedStringBytes, field_number_to_name)
   EXPECT_TRUE(0 == strcmp(RSB::field_number_to_name(RSB::FieldNumber::NESTED_BYTES),
                           "nested_bytes"));
 }
+
+#endif
 
 #ifdef MSG_TO_STRING
 
@@ -836,5 +840,125 @@ TEST(RepeatedStringBytes, to_string)
 }
 
 #endif // MSG_TO_STRING
+
+TEST(RepeatedStringWithLengths, test_both_lengths) {
+  repeated_string_with_lengths msg;
+
+  // The array should have exactly 3 elements
+  ASSERT_EQ(3, msg.array_of_txt().get_max_length());
+
+  // Each string should have a max length of 10
+  msg.mutable_array_of_txt(0) = "1234567890";
+  ASSERT_EQ(10, msg.array_of_txt(0).get_max_length());
+  ASSERT_STREQ("1234567890", msg.array_of_txt(0).get_const());
+
+  // Try to set a string longer than 10 characters - should be truncated
+  msg.mutable_array_of_txt(1) = "1234567890123";
+  ASSERT_EQ(10, msg.array_of_txt(1).get_length());
+  ASSERT_STREQ("1234567890", msg.array_of_txt(1).get_const());
+
+  EXPECT_EQ(3, msg.array_of_txt().get_max_length());
+  EXPECT_EQ(10, msg.array_of_txt(0).get_max_length());
+}
+
+TEST(RepeatedBytesWithLengths, test_both_lengths) {
+  repeated_bytes_with_lengths msg;
+
+  // The array should have exactly 3 elements
+  ASSERT_EQ(3, msg.array_of_bytes().get_max_length());
+
+  // Each bytes field should have a max length of 10
+  uint8_t data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  msg.mutable_array_of_bytes(0).set(data, 10);
+  ASSERT_EQ(10, msg.array_of_bytes(0).get_max_length());
+  for (int i = 0; i < 10; ++i) {
+    ASSERT_EQ(i, msg.array_of_bytes(0)[i]);
+  }
+
+  // Try to set more bytes than the max length - should be truncated
+  uint8_t big_data[15] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, msg.mutable_array_of_bytes(1).set(big_data, 15));
+  ASSERT_EQ(0, msg.array_of_bytes(1).get_length());
+
+  // Try to set data within the max length - should work
+  uint8_t small_data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.mutable_array_of_bytes(1).set(small_data, 10));
+  ASSERT_EQ(10, msg.array_of_bytes(1).get_length());
+  for (int i = 0; i < 10; ++i) {
+    ASSERT_EQ(i, msg.array_of_bytes(1)[i]);
+  }
+
+  // Clear the array first before setting data
+  msg.clear_array_of_bytes();
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.mutable_array_of_bytes(1).set(small_data, 10));
+  ASSERT_EQ(10, msg.array_of_bytes(1).get_length());
+  for (int i = 0; i < 10; ++i) {
+    ASSERT_EQ(i, msg.array_of_bytes(1)[i]);
+  }
+  EXPECT_EQ(3, msg.array_of_bytes().get_max_length());
+  EXPECT_EQ(10, msg.array_of_bytes(0).get_max_length());
+}
+
+// Test case 1: maxLength defined but nestedMaxLength not
+// This should result in a C++ template parameter for the string/bytes
+TEST(RepeatedStringMaxOnly, test_max_only) {
+  // The array should have exactly 3 elements
+  repeated_string_max_only<10> msg;
+  ASSERT_EQ(3, msg.array_of_txt().get_max_length());
+
+  // Each string should have a template parameter for length
+  msg.mutable_array_of_txt(0) = "1234567890";
+  ASSERT_EQ(10, msg.array_of_txt(0).get_length());
+  
+  // Compare byte by byte since get_const() doesn't return a null-terminated string
+  const char* expected = "1234567890";
+  const char* actual = msg.array_of_txt(0).get_const();
+  for (uint32_t i = 0; i < 10; ++i) {
+    ASSERT_EQ(expected[i], actual[i]);
+  }
+}
+
+TEST(RepeatedBytesMaxOnly, test_max_only) {
+  // The array should have exactly 3 elements
+  repeated_bytes_max_only<10> msg;
+  ASSERT_EQ(3, msg.array_of_bytes().get_max_length());
+
+  // Each bytes field should have a template parameter for length
+  uint8_t data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  msg.mutable_array_of_bytes(0).set(data, 10);
+  for (int i = 0; i < 10; ++i) {
+    ASSERT_EQ(i, msg.array_of_bytes(0)[i]);
+  }
+}
+
+// Test case 2: nestedMaxLength defined but maxLength not
+// This should result in a C++ template parameter for the array
+TEST(RepeatedStringNestedOnly, test_nested_only) {
+  // The array should have a template parameter for length
+  repeated_string_nested_only<10> msg;
+
+  // Each string should have a max length of 10
+  msg.mutable_array_of_txt(0) = "1234567890";
+  ASSERT_EQ(10, msg.array_of_txt(0).get_length());
+
+  // Compare byte by byte since get_const() doesn't return a null-terminated string
+  const char* expected = "1234567890";
+  const char* actual = msg.array_of_txt(0).get_const();
+  for (uint32_t i = 0; i < 10; ++i) {
+    ASSERT_EQ(expected[i], actual[i]);
+  }
+}
+
+TEST(RepeatedBytesNestedOnly, test_nested_only) {
+  // The array should have a template parameter for length
+  repeated_bytes_nested_only<10> msg;
+
+  // Each bytes field should have a max length of 10
+  uint8_t data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  msg.mutable_array_of_bytes(0).set(data, 10);
+  for (int i = 0; i < 10; ++i) {
+    ASSERT_EQ(i, msg.array_of_bytes(0)[i]);
+  }
+}
 
 } // End of namespace test_EmbeddedAMS_string_bytes
