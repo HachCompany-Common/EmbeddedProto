@@ -27,6 +27,11 @@ This document details the following:
 
 To stay up to date, signup for our [User Update](https://EmbeddedProto.com/signup).
 
+## 4.0.0
+* TODO Installation via pip3: `pip install EmbeddedProto`. This will also install a matching version of protoc. So you do not need to install the protoc compiler yourself.
+* TODO Run EmbeddedProto as an executable: `embeddedproto -I YOUR_FOLDER YOUR_PROTO_FILE.proto`
+* Included the C++ source files in the python package. You can get the location of these C++ source files by running: `embeddedproto --cpp-src-location`.
+
 ## 3.6.0
 * Update to Protobuf version 32.0.
 * Increated the minimum python version to 3.10.
