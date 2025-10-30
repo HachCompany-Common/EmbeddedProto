@@ -1,5 +1,9 @@
-To build the project use ./build_test.sh
-To ruin the unit tests run ./build/test/test_EmbeddedProto
 
-These scripts will run in the correct venv you do not need to make or activate the venv.
+# Building and running unit tests
+To build the unit tests use: `./build_test.sh`
+To run the unit tests use: `./build/test/test_EmbeddedProto`
+
+# Buildin the python package
+Activate the virtual env if not already active: `source ./venv/bin/activate`
+Build the package: `build_package.sh`
 
