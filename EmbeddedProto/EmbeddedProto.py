@@ -46,6 +46,14 @@ def run_protoc(argv=sys.argv):
     # Remove the program name
     argv.pop(0)
 
+    # Check if the --cpp-src-location parameter is present
+    if "--cpp-src-location" in argv:
+        # Get the location of the src folder
+        src_location = str((resources.files("EmbeddedProto") / "src").resolve())
+        print(src_location)
+        # Exit the script after printing the source location
+        return
+
     # Check if the well known types should be included.
     argv = ["-I" + get_well_known_types_location() if x == "--IncludeWellKnownTypes" else x for x in argv]
 
