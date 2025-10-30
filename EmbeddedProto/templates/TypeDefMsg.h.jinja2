@@ -314,7 +314,7 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
       using namespace ::EmbeddedProto;
       return 
         {% for field in typedef.fields %}
-          {{" +" if not loop.first }}{{field.get_type()}}::max_serialized_size(static_cast<uint32_t>(FieldNumber::{{field.variable_id_name}}))
+          {{"+ " if not loop.first }}{{field.get_type()}}::max_serialized_size(static_cast<uint32_t>(FieldNumber::{{field.variable_id_name}}))
         {% endfor %}
         {% for oneof in typedef.oneofs %}
           {{"+ " if not loop.first or typedef.fields|length != 0}}max_serialized_size_{{oneof.get_name()}}()
