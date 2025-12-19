@@ -285,7 +285,7 @@ namespace EmbeddedProto
                           (Field::FieldTypes::sint64 == FIELDTYPE) ||
                           (Field::FieldTypes::sfixed64 == FIELDTYPE))
         {
-          n_chars_used = snprintf(left_chars.data, left_chars.size, "%ld", get());
+          n_chars_used = snprintf(left_chars.data, left_chars.size, "%ld" , static_cast<signed long>(get()));
         }
         else if constexpr((Field::FieldTypes::uint32 == FIELDTYPE) ||
                           (Field::FieldTypes::fixed32 == FIELDTYPE))
@@ -295,7 +295,7 @@ namespace EmbeddedProto
         else if constexpr((Field::FieldTypes::uint64 == FIELDTYPE) ||
                           (Field::FieldTypes::fixed64 == FIELDTYPE))
         {
-          n_chars_used = snprintf(left_chars.data, left_chars.size, "%lu", get());
+          n_chars_used = snprintf(left_chars.data, left_chars.size, "%lu", static_cast<unsigned long>(get()));
         }
         else if constexpr(Field::FieldTypes::boolean == FIELDTYPE)
         {
