@@ -49,6 +49,13 @@ message nested_repeated_message
     repeated_fields rf = 1;
 }
 
+// Each element holds a singular nested message, so serializing the elements in parts
+// reuses the state two levels down.
+message repeated_message_nested_singular
+{
+  repeated nested_repeated_message items = 1;
+}
+
 enum SomeEnum {
   SE_A = 0;
   SE_B = 1;

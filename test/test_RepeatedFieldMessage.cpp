@@ -29,6 +29,7 @@
 
 #include <EmbeddedProto/ReadBufferFixedSize.h>
 
+#include <cstring>
 #include <cstdint>    
 #include <limits>
 #include <array>
@@ -396,6 +397,39 @@ TEST(RepeatedFieldMessage, deserialize_empty_message_array)
   EXPECT_EQ(1, msg.get_b().get_length());
   EXPECT_EQ(0, msg.b(0).u());
   EXPECT_EQ(0, msg.b(0).v());
+}
+
+// Each element of the repeated field holds a singular nested message. Serializing the
+// elements in parts reuses the state two levels down, which has to be reset between elements
+// or the nested message of every element after the first is silently skipped.
+TEST(RepeatedFieldMessage, serialize_partial_nested_message_in_every_element)
+{
+  repeated_message_nested_singular<2, Y_SIZE> msg;
+  msg.mutable_items(0).mutable_rf().set_x(1);
+  msg.mutable_items(1).mutable_rf().set_x(2);
+
+  ::EmbeddedProto::WriteBufferFixedSize<32> full;
+  ASSERT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(full));
+
+  ::EmbeddedProto::WriteBufferFixedSize<32> partial;
+  repeated_message_nested_singular<2, Y_SIZE>::StateStack state;
+  ASSERT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize_partial(partial, state.root()));
+
+  ASSERT_EQ(full.get_size(), partial.get_size());
+  EXPECT_EQ(0, std::memcmp(full.get_data(), partial.get_data(), full.get_size()));
+
+  ::EmbeddedProto::ReadBufferFixedSize<32> read_buffer;
+  std::memcpy(read_buffer.get_data(), full.get_data(), full.get_size());
+  read_buffer.set_bytes_written(full.get_size());
+
+  repeated_message_nested_singular<2, Y_SIZE> msg_deserialized;
+  repeated_message_nested_singular<2, Y_SIZE>::StateStack read_state;
+  // The whole message is read, so the buffer ends exactly at a field boundary.
+  ASSERT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg_deserialized.deserialize_partial(read_buffer, read_state.root()));
+  EXPECT_EQ(::EmbeddedProto::FieldProcessingPhase::TAG, read_state.root().phase);
+  ASSERT_EQ(2, msg_deserialized.get_items().get_length());
+  EXPECT_EQ(1, msg_deserialized.items(0).rf().x());
+  EXPECT_EQ(2, msg_deserialized.items(1).rf().x());
 }
 
 #endif 

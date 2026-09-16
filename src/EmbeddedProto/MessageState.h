@@ -79,16 +79,25 @@ namespace EmbeddedProto
       MessageState() = default;
       
 
-      //! Reset state to initial values.
+      //! Reset this state and every state below it to the initial values.
+      /*!
+          A state is reused whenever a message starts over at its level, for instance for
+          the next element of a repeated message field. The nested messages of that element
+          used the states further down the chain, so those are reset as well. Otherwise a
+          stale COMPLETE phase two levels down silently skips the nested message of the
+          next element. The child pointers themselves are kept, they are set at construction.
+      */
       void reset()
       {
-        phase = INITIAL_PHASE;
-        field_id = 0;
-        wire_type = INITIAL_WIRE_TYPE;
-        element_index = 0;
-        bytes_remaining = 0;
-        size_value = 0;
-        // Note: child pointer is not reset, it's set at construction
+        for(MessageState* state = this; nullptr != state; state = state->child)
+        {
+          state->phase = INITIAL_PHASE;
+          state->field_id = 0;
+          state->wire_type = INITIAL_WIRE_TYPE;
+          state->element_index = 0;
+          state->bytes_remaining = 0;
+          state->size_value = 0;
+        }
       }
       
     protected:
