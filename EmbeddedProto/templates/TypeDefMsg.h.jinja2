@@ -392,6 +392,12 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
           {
             state.child->reset();
           }
+
+          // The next field starts with a clean count, a packed field otherwise
+          // takes over the element index and byte count of the field before it.
+          state.element_index = 0U;
+          state.bytes_remaining = 0U;
+          state.size_value = 0U;
           
           // Determine next field using switch-case
           switch(field_id)

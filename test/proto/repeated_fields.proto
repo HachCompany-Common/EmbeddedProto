@@ -56,6 +56,13 @@ message repeated_message_nested_singular
   repeated nested_repeated_message items = 1;
 }
 
+// Two packed fields in one message, so the second starts after the first is complete.
+message two_packed
+{
+  repeated uint32 a = 1;
+  repeated uint32 b = 2;
+}
+
 enum SomeEnum {
   SE_A = 0;
   SE_B = 1;

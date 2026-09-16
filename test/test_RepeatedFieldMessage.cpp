@@ -432,6 +432,28 @@ TEST(RepeatedFieldMessage, serialize_partial_nested_message_in_every_element)
   EXPECT_EQ(2, msg_deserialized.items(1).rf().x());
 }
 
+// The second packed field of a message must be written in full when serializing in parts,
+// the element count of the first field may not carry over.
+TEST(RepeatedFieldMessage, serialize_partial_two_packed_fields)
+{
+  two_packed<3, 3> msg;
+  for(uint32_t i = 0; i < 3; ++i)
+  {
+    msg.add_a(100 + i);
+    msg.add_b(200 + i);
+  }
+
+  ::EmbeddedProto::WriteBufferFixedSize<32> full;
+  ASSERT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(full));
+
+  ::EmbeddedProto::WriteBufferFixedSize<32> partial;
+  two_packed<3, 3>::StateStack state;
+  ASSERT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize_partial(partial, state.root()));
+
+  ASSERT_EQ(full.get_size(), partial.get_size());
+  EXPECT_EQ(0, std::memcmp(full.get_data(), partial.get_data(), full.get_size()));
+}
+
 #endif 
 
 TEST(RepeatedFieldMessage, deserialize_one) 
