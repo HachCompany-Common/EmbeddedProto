@@ -113,6 +113,12 @@ namespace EmbeddedProto
       */
       bool pop(const bytes_view& dest) override;
 
+      //! Keep the single byte forms of peek() reachable next to the override below.
+      using ReadBufferInterface::peek;
+
+      //! Copy a block of bytes from the parent buffer without consuming them, respecting the section size.
+      bool peek(const bytes_view& dest) const override;
+
     private:
 
       //! A reference to the buffer containing the actual data.
@@ -213,6 +219,11 @@ namespace EmbeddedProto
       }
     }
     return result;
+  }
+
+  inline bool ReadBufferSection::peek(const bytes_view& dest) const
+  {
+    return (dest.size <= size_) && buffer_.peek(dest);
   }
 
 } // End of namespace EmbeddedProto

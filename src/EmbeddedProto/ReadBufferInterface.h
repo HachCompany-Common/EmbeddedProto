@@ -133,6 +133,32 @@ namespace EmbeddedProto
         return result;
       }
 
+      //! Copy a block of bytes out of the buffer without advancing the read index.
+      /*!
+          This is the batched counterpart of peek(n_bytes, byte): the bytes stay in
+          the buffer, so a caller which may consume only part of the block, such as a
+          callback field offering a window, reads it in one virtual call and calls
+          advance() for the part it accepted.
+
+          All-or-nothing like pop(const bytes_view&): when fewer than dest.size bytes
+          are available nothing is copied.
+
+          The default implementation peeks the bytes one at a time. Concrete buffers
+          are encouraged to override it with a single block copy.
+
+          \param[out] dest A view on the destination array, dest.size bytes are copied into it.
+          \return True when dest.size bytes were available and copied into dest.
+      */
+      virtual bool peek(const bytes_view& dest) const
+      {
+        bool result = get_size() >= dest.size;
+        for(uint32_t i = 0; result && (i < dest.size); ++i)
+        {
+          result = peek(i, dest.data[i]);
+        }
+        return result;
+      }
+
       //! Copy a block of bytes out of the buffer, pointer and length form of pop(const bytes_view&).
       /*!
           \param[out] dest   Destination array which must be able to hold length bytes.

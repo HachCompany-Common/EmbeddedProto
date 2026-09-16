@@ -121,6 +121,20 @@ namespace EmbeddedProto
         return return_value;
       }
 
+      //! Keep the single byte forms of peek() reachable next to the override below.
+      using ReadBufferInterface::peek;
+
+      //! \see ::EmbeddedProto::ReadBufferInterface::peek(const bytes_view&)
+      bool peek(const bytes_view& dest) const override
+      {
+        const bool return_value = (write_index_ - read_index_) >= dest.size;
+        if(return_value)
+        {
+          memcpy(dest.data, data_.data() + read_index_, dest.size);
+        }
+        return return_value;
+      }
+
       //! Keep the pointer and length form of pop() reachable next to the override below.
       using ReadBufferInterface::pop;
 

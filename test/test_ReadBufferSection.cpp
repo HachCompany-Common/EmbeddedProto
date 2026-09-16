@@ -137,6 +137,32 @@ TEST(ReadBufferSection, pop)
   EXPECT_EQ(0, byte);
 }
 
+TEST(ReadBufferSection, peek_block)
+{
+  // A block inside the section is peeked from the parent buffer, which keeps the
+  // bytes, so the section size does not change. A block beyond the section is
+  // refused without touching the parent.
+  Mocks::ReadBufferMock read_buffer_mock;
+  EXPECT_CALL(read_buffer_mock, get_size()).WillRepeatedly(Return(8));
+  for(uint32_t i = 0; i < 3; ++i)
+  {
+    EXPECT_CALL(read_buffer_mock, peek(i, _)).WillOnce(DoAll(SetArgReferee<1>(static_cast<uint8_t>(i + 1)), Return(true)));
+  }
+
+  EmbeddedProto::ReadBufferSection read_buffer_section(read_buffer_mock, 3);
+
+  uint8_t dest[3] = { 0, 0, 0 };
+  EXPECT_TRUE(read_buffer_section.peek(::EmbeddedProto::bytes_view{dest, 3}));
+  EXPECT_EQ(1, dest[0]);
+  EXPECT_EQ(2, dest[1]);
+  EXPECT_EQ(3, dest[2]);
+  EXPECT_EQ(3, read_buffer_section.get_size());
+
+  uint8_t dest2[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
+  EXPECT_FALSE(read_buffer_section.peek(::EmbeddedProto::bytes_view{dest2, 4}));
+  EXPECT_EQ(0xFF, dest2[0]);
+}
+
 TEST(ReadBufferSection, pop_block)
 {
   // A block fully inside the section is delegated to the parent buffer in a
