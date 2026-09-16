@@ -28,6 +28,9 @@ Optional, for the alternative ways to install described on the [installation](ht
 * [uv](https://docs.astral.sh/uv/), a much faster replacement for pip and venv.
 * Git, when you use Embedded Proto as a submodule in your project.
 
+Optional, for developing Embedded Proto itself:
+* CMake 3.28 or newer, to build and run the unit tests. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 
 # Getting started
 
