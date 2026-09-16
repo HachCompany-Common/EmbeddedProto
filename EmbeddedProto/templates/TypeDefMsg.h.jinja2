@@ -343,29 +343,11 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
             state.phase = ::EmbeddedProto::FieldProcessingPhase::TAG;
             field_id = state.field_id;
             {% elif typedef.oneofs|length > 0 %}
-            // No regular fields available, start with first set oneof field.
-            {% for oneof in typedef.oneofs %}
-            switch({{oneof.get_which_oneof()}})
-            {
-                {% for field in oneof.get_fields() %}
-                case FieldNumber::{{field.get_variable_id_name()}}:
-                    state.field_id = static_cast<uint32_t>(FieldNumber::{{field.get_variable_id_name()}});
-                    state.phase = ::EmbeddedProto::FieldProcessingPhase::TAG;
-                    field_id = state.field_id;
-                    break;
-                {% endfor %}
-                default:
-                    // This oneof is not set, try next oneof or regular fields
-                    {% if loop.last %}
-                    // No fields to serialize
-                    state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
-                    {% endif %}
-                    break;
-            }
-            {% if loop.last %}
-            break;
-            {% endif %}
-            {% endfor %}
+            // No regular fields, start with the set member of the first oneof which has one.
+            field_id = first_set_oneof_field(0U);
+            state.field_id = field_id;
+            state.phase = (0U == field_id) ? ::EmbeddedProto::FieldProcessingPhase::COMPLETE
+                                           : ::EmbeddedProto::FieldProcessingPhase::TAG;
             {% else %}
             // No fields to serialize
             state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
@@ -421,64 +403,11 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
               state.field_id = field_id;
               state.phase = ::EmbeddedProto::FieldProcessingPhase::TAG;
             {% elif typedef.oneofs|length > 0 %}
-              // Move to first oneof group - check which field is set
-              {% set first_oneof = typedef.oneofs[0] %}
-              switch(get_{{first_oneof.get_which_oneof()}}())
-              {
-                {% for oneof_field in first_oneof.get_fields() %}
-                case FieldNumber::{{oneof_field.get_variable_id_name()}}:
-                  field_id = static_cast<uint32_t>(FieldNumber::{{ oneof_field.get_variable_id_name() }});
-                  state.field_id = field_id;
-                  state.phase = ::EmbeddedProto::FieldProcessingPhase::TAG;
-                  break;
-                {% endfor %}
-                default:
-                  // No field in this oneof group is set, skip to next oneof or complete
-                  {% if typedef.oneofs|length > 1 %}
-                  // Move to next oneof group - check which field is set
-                  {% set next_oneof = typedef.oneofs[1] %}
-                  switch(get_{{next_oneof.get_which_oneof()}}())
-                  {
-                    {% for next_field in next_oneof.get_fields() %}
-                    case FieldNumber::{{next_field.get_variable_id_name()}}:
-                      field_id = static_cast<uint32_t>(FieldNumber::{{ next_field.get_variable_id_name() }});
-                      state.field_id = field_id;
-                      state.phase = ::EmbeddedProto::FieldProcessingPhase::TAG;
-                      break;
-                    {% endfor %}
-                    default:
-                      {% if typedef.oneofs|length > 2 %}
-                      // No field in next oneof is set either, move to next
-                      {% set next_next_oneof = typedef.oneofs[2] %}
-                      switch(get_{{next_next_oneof.get_which_oneof()}}())
-                      {
-                        {% for next_next_field in next_next_oneof.get_fields() %}
-                        case FieldNumber::{{next_next_field.get_variable_id_name()}}:
-                          field_id = static_cast<uint32_t>(FieldNumber::{{ next_next_field.get_variable_id_name() }});
-                          state.field_id = field_id;
-                          state.phase = ::EmbeddedProto::FieldProcessingPhase::TAG;
-                          break;
-                        {% endfor %}
-                        default:
-                          // No more oneof groups, we're done
-                          field_id = 0;
-                          state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
-                          break;
-                      }
-                      {% else %}
-                      // No more oneof groups, we're done
-                      field_id = 0;
-                      state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
-                      {% endif %}
-                      break;
-                  }
-                  {% else %}
-                  // No more oneof groups, we're done
-                  field_id = 0;
-                  state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
-                  {% endif %}
-                  break;
-              }
+              // Move on to the set member of the first oneof which has one.
+              field_id = first_set_oneof_field(0U);
+              state.field_id = field_id;
+              state.phase = (0U == field_id) ? ::EmbeddedProto::FieldProcessingPhase::COMPLETE
+                                             : ::EmbeddedProto::FieldProcessingPhase::TAG;
             {% else %}
               // Last field - we're done
               field_id = 0;
@@ -492,56 +421,11 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
             {% for field_idx in range(oneof.get_fields()|length) %}
             {% set field = oneof.get_fields()[field_idx] %}
             case static_cast<uint32_t>(FieldNumber::{{field.get_variable_id_name()}}):
-              // For oneof fields, we need to check which field is set in the next oneof group
-              {% if oneof_idx < (typedef.oneofs|length - 1) %}
-              // There is a next oneof group - check which field is set
-              {% set next_oneof = typedef.oneofs[oneof_idx + 1] %}
-              switch(get_{{next_oneof.get_which_oneof()}}())
-              {
-                {% for next_field in next_oneof.get_fields() %}
-                case FieldNumber::{{next_field.get_variable_id_name()}}:
-                  field_id = static_cast<uint32_t>(FieldNumber::{{ next_field.get_variable_id_name() }});
-                  state.field_id = field_id;
-                  state.phase = ::EmbeddedProto::FieldProcessingPhase::TAG;
-                  break;
-                {% endfor %}
-                default:
-                  // No field in next oneof group is set, skip to next oneof or complete
-                  {% if (oneof_idx + 2) < typedef.oneofs|length %}
-                  // Move to first field of the oneof group after next
-                  {% set next_next_oneof = typedef.oneofs[oneof_idx + 2] %}
-                  {% set next_next_which_method = next_next_oneof.get_which_method() %}
-                  switch(get_{{next_next_oneof.get_which_oneof()}}())
-                  {
-                    {% for next_next_field in next_next_oneof.get_fields() %}
-                    case FieldNumber::{{next_next_field.get_variable_id_name()}}:
-                      field_id = static_cast<uint32_t>(FieldNumber::{{ next_next_field.get_variable_id_name() }});
-                      state.field_id = field_id;
-                      state.phase = ::EmbeddedProto::FieldProcessingPhase::TAG;
-                      break;
-                    {% endfor %}
-                    default:
-                      // No field in this oneof group is set either, we're done
-                      field_id = 0;
-                      state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
-                      break;
-                  }
-                  {% else %}
-                  // No more oneof groups, we're done
-                  field_id = 0;
-                  state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
-                  {% endif %}
-                  break;
-              }
-              {% elif oneof_idx == (typedef.oneofs|length - 1) %}
-              // Last oneof group - we're done
-              field_id = 0;
-              state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
-              {% else %}
-              // Should not happen, but mark complete
-              field_id = 0;
-              state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
-              {% endif %}
+              // Move on to the set member of the next oneof which has one.
+              field_id = first_set_oneof_field({{ oneof_idx + 1 }}U);
+              state.field_id = field_id;
+              state.phase = (0U == field_id) ? ::EmbeddedProto::FieldProcessingPhase::COMPLETE
+                                             : ::EmbeddedProto::FieldProcessingPhase::TAG;
               break;
               
             {% endfor %}
@@ -798,6 +682,23 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
 #endif // End of MSG_TO_STRING
 
   private:
+
+    {% if typedef.oneofs|length > 0 %}
+#ifdef PARTIAL_SERIALIZATION_ENABLED
+    //! The field number of the set member of the first oneof at or after the given oneof index, zero when none is set.
+    uint32_t first_set_oneof_field(const uint32_t oneof_index) const
+    {
+      uint32_t field_number = 0U;
+      {% for oneof in typedef.oneofs %}
+      if((0U == field_number) && (oneof_index <= {{ loop.index0 }}U))
+      {
+        field_number = static_cast<uint32_t>({{ oneof.get_which_oneof() }});
+      }
+      {% endfor %}
+      return field_number;
+    }
+#endif // PARTIAL_SERIALIZATION_ENABLED
+    {% endif %}
 
       {% if typedef.optional_fields is defined and typedef.optional_fields|length > 0 %}
       // Define constants for tracking the presence of fields.
