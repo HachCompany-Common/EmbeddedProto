@@ -91,7 +91,7 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
       {% endfor %}
     }
 
-    ~{{ typedef.get_name() }}() override = default;
+    ~{{ typedef.get_name() }}() = default;
 
     //! The full protobuf name of this message type, the name used in the type url of a google.protobuf.Any.
     static constexpr char const* MESSAGE_FULL_NAME = "{{ typedef.get_full_name() }}";

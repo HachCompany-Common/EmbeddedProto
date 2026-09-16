@@ -86,7 +86,7 @@ namespace EmbeddedProto
       using ChunkCallback = Functional<uint32_t(VIEW)>;
 
       BytesStringCallback() = default;
-      ~BytesStringCallback() override = default;
+      ~BytesStringCallback() = default;
 
       // --- Binding (reference-taking, no ownership) --------------------------
 

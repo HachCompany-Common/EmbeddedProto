@@ -41,7 +41,7 @@ class MessageInterface : public ::EmbeddedProto::Field
 
     MessageInterface() = default;
 
-    ~MessageInterface() override = default;
+    ~MessageInterface() = default;
 
     //! \see Field::deserialize()
     Error deserialize(::EmbeddedProto::ReadBufferInterface& buffer) override = 0;

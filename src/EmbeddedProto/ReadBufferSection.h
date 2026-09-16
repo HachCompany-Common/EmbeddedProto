@@ -53,7 +53,7 @@ namespace EmbeddedProto
       */
       ReadBufferSection(ReadBufferInterface& buffer, const uint32_t size);
 
-      ~ReadBufferSection() override = default;
+      ~ReadBufferSection() = default;
 
 
       //! Return the number of bytes remaining.

@@ -86,7 +86,7 @@ namespace EmbeddedProto
       using SinkCallback = Functional<Error(const MSG_TYPE&)>;
 
       MessageCallback() = default;
-      ~MessageCallback() override = default;
+      ~MessageCallback() = default;
 
       // --- Binding (reference-taking, no ownership) --------------------------
 

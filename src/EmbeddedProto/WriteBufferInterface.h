@@ -40,7 +40,16 @@ namespace EmbeddedProto
     public:
 
       WriteBufferInterface() = default;
-      virtual ~WriteBufferInterface() = default;
+
+    protected:
+      /*!
+          Protected and non-virtual on purpose. Objects are never destroyed through a pointer to
+          this interface, and a virtual destructor would put a deleting destructor in every
+          vtable, which drags operator delete and therefore malloc/free into the firmware.
+      */
+      ~WriteBufferInterface() = default;
+
+    public:
 
       //! Delete all data in the buffer.
       virtual void clear() = 0;

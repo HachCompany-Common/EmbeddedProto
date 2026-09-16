@@ -43,7 +43,7 @@ namespace EmbeddedProto
   {
     public:
       MessageSizeCalculator() = default;
-      ~MessageSizeCalculator() override = default;
+      ~MessageSizeCalculator() = default;
       
       //! Reset the size count of the buffer.
       void clear() override 

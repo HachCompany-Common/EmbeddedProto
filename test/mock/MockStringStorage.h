@@ -43,7 +43,7 @@ class MockStringStorage final : public ::EmbeddedProto::FieldString<MAX_LENGTH>
       ++instance_count;
     }
 
-    ~MockStringStorage() override = default;
+    ~MockStringStorage() = default;
 
     //! The number of MockStringStorage objects currently alive. Used by the tests.
     static uint32_t instance_count;

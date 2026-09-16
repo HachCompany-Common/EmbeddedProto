@@ -68,7 +68,7 @@ namespace EmbeddedProto
       using SinkCallback = Functional<Error(const DATA_TYPE&)>;
 
       RepeatedFieldCallback() = default;
-      ~RepeatedFieldCallback() override = default;
+      ~RepeatedFieldCallback() = default;
 
       // --- Binding (reference-taking, no ownership) --------------------------
 

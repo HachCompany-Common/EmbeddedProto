@@ -50,7 +50,7 @@ namespace EmbeddedProto
       }
 
       //! The default destructor.
-      ~ReadBufferFixedSize() override = default;
+      ~ReadBufferFixedSize() = default;
 
       //! \see ::EmbeddedProto::ReadBufferInterface::get_size()
       uint32_t get_size() const override

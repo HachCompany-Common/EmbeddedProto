@@ -34,7 +34,7 @@ namespace EmbeddedProto
   {  
     public:
       WriteBufferFixedSize() = default;
-      ~WriteBufferFixedSize() override = default;
+      ~WriteBufferFixedSize() = default;
   
       //! \see ::EmbeddedProto::WriteBufferInterface::clear()
       void clear() override
