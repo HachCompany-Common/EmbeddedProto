@@ -40,6 +40,18 @@ namespace EmbeddedProto
 //! When the macro is not defined only the regular, single-call serialize()/deserialize()
 //! are available.
 
+//! Define VIRTUAL_DESTRUCTORS_ENABLED to give the Field, ReadBufferInterface and
+//! WriteBufferInterface base classes a public virtual destructor.
+/*!
+    By default those destructors are protected and non-virtual: objects are destroyed as
+    their concrete type and deleting one through a pointer to the interface is a compile
+    error. A virtual destructor puts a deleting destructor in every vtable, which references
+    operator delete and links malloc and free into firmware that never frees anything
+    (about 700 bytes of flash and 400 bytes of RAM on a Cortex-M4). Define the macro when
+    messages or buffers are owned and deleted through an interface pointer, for example a
+    std::unique_ptr<MessageInterface> backed by an RTOS heap.
+*/
+
 #if __cplusplus >= 201703L // C++17 and up
   
   template<class T>

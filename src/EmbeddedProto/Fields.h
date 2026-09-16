@@ -68,15 +68,15 @@ namespace EmbeddedProto
 
       Field() = default;
 
+#ifdef VIRTUAL_DESTRUCTORS_ENABLED
+      virtual ~Field() = default;
+#else
     protected:
-      /*!
-          Protected and non-virtual on purpose. Objects are never destroyed through a pointer to
-          this interface, and a virtual destructor would put a deleting destructor in every
-          vtable, which drags operator delete and therefore malloc/free into the firmware.
-      */
+      //! Protected and non-virtual by default, see VIRTUAL_DESTRUCTORS_ENABLED in Defines.h.
       ~Field() = default;
 
     public:
+#endif
 
       virtual Error serialize(WriteBufferInterface& buffer) const = 0;
 

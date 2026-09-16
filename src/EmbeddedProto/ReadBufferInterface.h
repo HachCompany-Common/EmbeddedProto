@@ -40,15 +40,15 @@ namespace EmbeddedProto
 
       ReadBufferInterface() = default;
 
+#ifdef VIRTUAL_DESTRUCTORS_ENABLED
+      virtual ~ReadBufferInterface() = default;
+#else
     protected:
-      /*!
-          Protected and non-virtual on purpose. Objects are never destroyed through a pointer to
-          this interface, and a virtual destructor would put a deleting destructor in every
-          vtable, which drags operator delete and therefore malloc/free into the firmware.
-      */
+      //! Protected and non-virtual by default, see VIRTUAL_DESTRUCTORS_ENABLED in Defines.h.
       ~ReadBufferInterface() = default;
 
     public:
+#endif
 
       //! Obtain the total number of bytes currently stored in the buffer.
       virtual uint32_t get_size() const = 0;
