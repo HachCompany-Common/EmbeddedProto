@@ -1321,6 +1321,35 @@ TEST(NestedMessage, PartialDeserialize_NestingTooDeep)
   EXPECT_EQ(::EmbeddedProto::Error::NESTING_TOO_DEEP, msg.deserialize_partial(buffer, shallow_state.root()));
 }
 
+TEST(NestedMessage, PartialDeserialize_EndGroupInsideLengthDelimitedNested)
+{
+  // An END_GROUP tag only closes group framing. Inside a length-delimited nested message it
+  // is malformed input and must be rejected instead of ending the nested message early.
+  ::demo::space::message_b<SIZE_MSG_A> msg;
+  ::demo::space::message_b<SIZE_MSG_A>::StateStack state;
+
+  // END_GROUP (0x0C, field 1) followed by more bytes of the nested section.
+  ::EmbeddedProto::ReadBufferFixedSize<8> buffer_mid({
+      0x12, 0x03,       // nested_a tag + size (3)
+      0x0C,             // END_GROUP tag
+      0x18, 0x02,       // z, part of the section but never reached
+      0x18, 0x01        // parent v
+    });
+
+  EXPECT_EQ(::EmbeddedProto::Error::INVALID_WIRETYPE, msg.deserialize_partial(buffer_mid, state.root()));
+
+  // END_GROUP as the last byte of the section, previously taken as a clean end of the nested
+  // message.
+  state.reset();
+  ::EmbeddedProto::ReadBufferFixedSize<8> buffer_last({
+      0x12, 0x01,       // nested_a tag + size (1)
+      0x0C,             // END_GROUP tag
+      0x18, 0x01        // parent v
+    });
+
+  EXPECT_EQ(::EmbeddedProto::Error::INVALID_WIRETYPE, msg.deserialize_partial(buffer_last, state.root()));
+}
+
 #endif // PARTIAL_SERIALIZATION_ENABLED
 
 } // End of namespace test_EmbeddedAMS_NestedMessage

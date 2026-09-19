@@ -229,14 +229,20 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
           {
             if(::EmbeddedProto::WireFormatter::WireType::END_GROUP == state.wire_type)
             {
-              // End of a DELIMITED (group) message. Signal completion to the caller
-              // (deserialize_partial_as_group); the END_GROUP tag is consumed.
+              // End of a DELIMITED (group) message. The END_GROUP tag is consumed and the
+              // COMPLETE phase signals completion to the caller owning the framing
+              // (deserialize_partial_as_group). Stop the loop here, the completion
+              // handling below must not start the next field. Inside a length-delimited
+              // field this tag is malformed, deserialize_partial_as_field rejects it.
               state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
-              return ::EmbeddedProto::Error::NO_ERRORS;
+              continue_deserializing = false;
             }
-            state.phase = (::EmbeddedProto::WireFormatter::WireType::LENGTH_DELIMITED == state.wire_type)
-              ? ::EmbeddedProto::FieldProcessingPhase::SIZE
-              : ::EmbeddedProto::FieldProcessingPhase::DATA;
+            else
+            {
+              state.phase = (::EmbeddedProto::WireFormatter::WireType::LENGTH_DELIMITED == state.wire_type)
+                ? ::EmbeddedProto::FieldProcessingPhase::SIZE
+                : ::EmbeddedProto::FieldProcessingPhase::DATA;
+            }
           }
         }
 
@@ -274,7 +280,8 @@ class {{ typedef.get_name() }} final: public ::EmbeddedProto::MessageInterface
           }
         }
 
-        if((::EmbeddedProto::Error::NO_ERRORS == return_value)
+        if(continue_deserializing
+           && (::EmbeddedProto::Error::NO_ERRORS == return_value)
            && (::EmbeddedProto::FieldProcessingPhase::COMPLETE == state.phase))
         {
           state.phase = ::EmbeddedProto::FieldProcessingPhase::TAG;
