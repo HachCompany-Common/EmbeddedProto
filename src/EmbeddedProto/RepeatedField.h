@@ -31,6 +31,7 @@
 #include "FieldStringBytes.h"
 #include "Errors.h"
 
+#include <array>
 #include <cstdint>
 #include <type_traits>
 
@@ -87,6 +88,16 @@ namespace EmbeddedProto
     struct fieldtemplate_wire_type<::EmbeddedProto::FieldTemplate<F, V, W, S>>
     {
       static constexpr ::EmbeddedProto::WireFormatter::WireType value = W;
+    };
+
+    //! Helper trait to extract the field type from a FieldTemplate specialization.
+    template<typename>
+    struct fieldtemplate_field_type;
+
+    template<Field::FieldTypes F, typename V, WireFormatter::WireType W, uint32_t S>
+    struct fieldtemplate_field_type<::EmbeddedProto::FieldTemplate<F, V, W, S>>
+    {
+      static constexpr Field::FieldTypes value = F;
     };
 
     //! This class only supports Field and FieldTemplate classes as template parameter.
@@ -438,14 +449,15 @@ namespace EmbeddedProto
       }
 
     private:
-      //! Serialize a single packed element, batching fixed-width values into one push.
+      //! Serialize a single packed element with one all-or-nothing push.
       /*!
-          For fixed-width scalars the element's bytes are written with a single
-          push(bytes, length) call (all-or-nothing). This keeps the resumable
-          partial path correct: when the value does not fit, nothing is written
-          so bytes_remaining / element_index stay untouched and the element is
-          retried cleanly on the next call. Other element types keep their
-          existing (byte-at-a-time) serialization.
+          Every scalar element is written with a single push(bytes, length) call.
+          Fixed-width values push their little-endian bytes directly, varint values
+          (integers, bools and enums) are first encoded into a local array. This
+          keeps the resumable partial path correct: when the element does not fit,
+          nothing is written so bytes_remaining / element_index stay untouched and
+          the element is retried cleanly on the next call. Message and string
+          elements are never packed and keep their own serialization.
       */
       Error serialize_packed_element(uint32_t index, WriteBufferInterface& buffer) const
       {
@@ -464,7 +476,53 @@ namespace EmbeddedProto
       Error serialize_packed_element_(uint32_t index, WriteBufferInterface& buffer,
                                       std::false_type) const
       {
-        return this->get_const(index).serialize(buffer);
+        Error return_value = Error::NO_ERRORS;
+        if constexpr(is_specialization_of_FieldTemplate<DATA_TYPE>::value)
+        {
+          std::array<uint8_t, WireFormatter::VARINT_MAX_N_BYTES> bytes = {0};
+          const uint32_t n_bytes = WireFormatter::EncodeVarint(
+                                      packed_varint_value(this->get_const(index)), bytes);
+          return_value = buffer.push(bytes.data(), n_bytes) ? Error::NO_ERRORS
+                                                            : Error::BUFFER_FULL;
+        }
+        else
+        {
+          return_value = this->get_const(index).serialize(buffer);
+        }
+        return return_value;
+      }
+
+      //! Return the value of a varint element as it goes on the wire, zero extended to 64 bits.
+      /*!
+          Mirrors the conversions of the matching FieldTemplate::serialize(): int32 and
+          enum values are truncated to 32 bits, sint32 and sint64 values are zig-zag
+          encoded and a bool becomes 0 or 1. This way one encoder produces the same
+          bytes for every varint element type as full serialization does.
+      */
+      static uint64_t packed_varint_value(const DATA_TYPE& element)
+      {
+        constexpr Field::FieldTypes FIELD_TYPE = fieldtemplate_field_type<DATA_TYPE>::value;
+        uint64_t value = 0U;
+        if constexpr((Field::FieldTypes::sint32 == FIELD_TYPE)
+                     || (Field::FieldTypes::sint64 == FIELD_TYPE))
+        {
+          value = static_cast<uint64_t>(WireFormatter::ZigZagEncode(element.get()));
+        }
+        else if constexpr(Field::FieldTypes::boolean == FIELD_TYPE)
+        {
+          value = element.get() ? 1U : 0U;
+        }
+        else if constexpr((Field::FieldTypes::int32 == FIELD_TYPE)
+                          || (Field::FieldTypes::enumeration == FIELD_TYPE))
+        {
+          value = static_cast<uint64_t>(static_cast<uint32_t>(element.get()));
+        }
+        else
+        {
+          // int64, uint32 and uint64 convert directly.
+          value = static_cast<uint64_t>(element.get());
+        }
+        return value;
       }
 
       //! Packed partial serialization: TAG->SIZE->DATA over one length-delimited block.
