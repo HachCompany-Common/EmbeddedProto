@@ -28,6 +28,7 @@
 #include "ReadBufferInterface.h"
 #include "Errors.h"
 
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <math.h>
@@ -182,11 +183,14 @@ namespace EmbeddedProto
         // The in-memory bytes already are the wire order, push them as one block.
         result = buffer.push(reinterpret_cast<const uint8_t*>(&value), sizeof(UINT_TYPE));
 #else
-        // Loop over all bytes in the integer.
-        for(uint8_t i = 0; (i < std::numeric_limits<UINT_TYPE>::digits) && result; i += 8) {
-          // Shift the value using the current value of i.
-          result = buffer.push(static_cast<uint8_t>((value >> i) & 0x00FF));
+        // Build the little-endian wire bytes locally and push them as one block, so the
+        // write is all-or-nothing just like on a little-endian target.
+        std::array<uint8_t, sizeof(UINT_TYPE)> bytes = {0};
+        for(uint32_t i = 0; i < static_cast<uint32_t>(sizeof(UINT_TYPE)); ++i)
+        {
+          bytes[i] = static_cast<uint8_t>((value >> (i * 8U)) & 0x00FFU);
         }
+        result = buffer.push(bytes.data(), static_cast<uint32_t>(bytes.size()));
 #endif
         return result ? Error::NO_ERRORS : Error::BUFFER_FULL;
       }
@@ -226,8 +230,9 @@ namespace EmbeddedProto
           Writes `count` values, each `sizeof(VAR_TYPE)` bytes wide, little-endian
           on the wire (protobuf packed fixed32/fixed64 layout). On a little-endian
           target the whole block is copied to the buffer with a single
-          push(bytes, length) call. On a big-endian target every value is emitted
-          byte-by-byte so the on-wire order stays little-endian.
+          push(bytes, length) call. On a big-endian target every value is byte
+          swapped into a local array and pushed as one block, so the on-wire order
+          stays little-endian and each value is still written all-or-nothing.
 
           This is used to batch packed repeated fixed32/sfixed32/float and
           fixed64/sfixed64/double fields into as few buffer writes as possible.
@@ -251,7 +256,7 @@ namespace EmbeddedProto
         const uint32_t n_bytes = count * static_cast<uint32_t>(sizeof(VAR_TYPE));
         return buffer.push(raw, n_bytes) ? Error::NO_ERRORS : Error::BUFFER_FULL;
 #else
-        // Big-endian fallback: emit every value in little-endian byte order.
+        // Big-endian fallback: every value is pushed as one little-endian block.
         using UINT_TYPE = typename std::conditional<4U == sizeof(VAR_TYPE),
                                                     uint32_t, uint64_t>::type;
         Error return_value = Error::NO_ERRORS;
@@ -649,9 +654,9 @@ namespace EmbeddedProto
       /** @} **/
 
 
-      //! This function converts a given value unsigned integer to a varint formatted data buffer.
+      //! Encode an unsigned integer as a varint into a local array instead of a buffer.
       /*!
-        \param[in] value  The data to be serialized, uint32_t or uint64_t.
+        The caller can push the bytes asdata to be serialized, uint32_t or uint64_t.
         \param[in] buffer A reference to a message buffer object in which to store the variable.
         \return A value from the Error enum, NO_ERROR in case everything is fine.
       */
