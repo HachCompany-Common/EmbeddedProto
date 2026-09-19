@@ -24,6 +24,7 @@
 #include "gmock/gmock.h"
 
 #include "edition_2023.h"
+#include "nested_message.h"
 
 #include <EmbeddedProto/WireFormatter.h>
 #include <ReadBufferMock.h>
@@ -637,6 +638,105 @@ TEST(EditionsDelimitedPartial, nesting_too_deep)
   DelimitedMessage result;
   EXPECT_EQ(::EmbeddedProto::Error::NESTING_TOO_DEEP,
             result.deserialize_partial(buffer, shallow.root()));
+}
+
+// Feed a byte sequence to deserialize_partial through two buffers split at a
+// given index. Both calls must end waiting for more input (END_OF_BUFFER). A
+// varint is only consumed when complete, so bytes left over from the first
+// buffer are carried into the second one, as a caller would do.
+template<class MESSAGE, class STATE>
+static void deserialize_partial_split(const uint8_t* bytes, const uint32_t size,
+                                      const uint32_t split, MESSAGE& msg, STATE& state)
+{
+  ::EmbeddedProto::ReadBufferFixedSize<16> first;
+  for(uint32_t i = 0; i < split; ++i)
+  {
+    first.push(bytes[i]);
+  }
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize_partial(first, state.root()))
+      << "split " << split;
+
+  ::EmbeddedProto::ReadBufferFixedSize<16> second;
+  uint8_t left_over = 0;
+  while(first.pop(left_over))
+  {
+    second.push(left_over);
+  }
+  for(uint32_t i = split; i < size; ++i)
+  {
+    second.push(bytes[i]);
+  }
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize_partial(second, state.root()))
+      << "split " << split;
+  EXPECT_EQ(0U, second.get_size()) << "split " << split;
+}
+
+// An unknown DELIMITED field is skipped in partial mode, whichever byte the
+// buffer boundary falls on.
+TEST(EditionsDelimitedPartial, unknown_group_is_skipped)
+{
+  // before(1)=7, unknown group field 3 with an inner field, after(5)=9.
+  const std::array<uint8_t, 9> bytes = {
+      0x08, 0x07,                   // before = 7
+      0x1B, 0x08, 0x96, 0x01, 0x1C, // unknown group (field 3)
+      0x28, 0x09};                  // after = 9
+
+  for(uint32_t split = 0; split <= bytes.size(); ++split)
+  {
+    GroupSkipMessage msg;
+    // The flat message has a depth of one; skipping the group needs one more.
+    ::EmbeddedProto::MessageStateStack<2> state;
+    deserialize_partial_split(bytes.data(), bytes.size(), split, msg, state);
+    EXPECT_EQ(7, msg.get_before()) << "split " << split;
+    EXPECT_EQ(9, msg.get_after()) << "split " << split;
+  }
+}
+
+// Nested unknown groups are skipped to the matching END_GROUP in partial mode.
+TEST(EditionsDelimitedPartial, nested_unknown_groups_skipped)
+{
+  // before(1)=7, group(3){ group(4){ x=1 } }, after(5)=9.
+  const std::array<uint8_t, 10> bytes = {
+      0x08, 0x07,             // before = 7
+      0x1B,                   // START_GROUP field 3
+        0x23,                 // START_GROUP field 4
+          0x08, 0x01,         // inner field 1 = 1
+        0x24,                 // END_GROUP field 4
+      0x1C,                   // END_GROUP field 3
+      0x28, 0x09};            // after = 9
+
+  for(uint32_t split = 0; split <= bytes.size(); ++split)
+  {
+    GroupSkipMessage msg;
+    // One level for the message and one for each nested group.
+    ::EmbeddedProto::MessageStateStack<3> state;
+    deserialize_partial_split(bytes.data(), bytes.size(), split, msg, state);
+    EXPECT_EQ(7, msg.get_before()) << "split " << split;
+    EXPECT_EQ(9, msg.get_after()) << "split " << split;
+  }
+}
+
+// Skipping an unknown group deeper than the state stack reports NESTING_TOO_DEEP.
+TEST(EditionsDelimitedPartial, unknown_group_nesting_too_deep)
+{
+  ::EmbeddedProto::ReadBufferFixedSize<8> buffer({0x1B, 0x08, 0x96, 0x01, 0x1C});
+  GroupSkipMessage msg;
+  GroupSkipMessage::StateStack state; // Depth one: no child state for the group.
+  EXPECT_EQ(::EmbeddedProto::Error::NESTING_TOO_DEEP, msg.deserialize_partial(buffer, state.root()));
+}
+
+// PROTO-322: an unknown group in front of a known field stalled partial
+// deserialization with STATE_MISMATCH on every call.
+TEST(EditionsDelimitedPartial, unknown_group_before_known_field)
+{
+  ::EmbeddedProto::ReadBufferFixedSize<8> buffer(
+      {0x2B, 0x08, 0x01, 0x2C, // unknown group field 5 { field 1 = 1 }
+       0x18, 0x07});           // v = 7
+  demo::space::message_b<3> msg;
+  demo::space::message_b<3>::StateStack state;
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize_partial(buffer, state.root()));
+  EXPECT_EQ(0U, buffer.get_size());
+  EXPECT_EQ(7, msg.get_v());
 }
 
 #endif // PARTIAL_SERIALIZATION_ENABLED
