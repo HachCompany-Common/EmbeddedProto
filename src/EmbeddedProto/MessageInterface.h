@@ -372,6 +372,17 @@ class MessageInterface : public ::EmbeddedProto::Field
         const uint32_t bytes_consumed = section_size_before - section.get_size();
         state.bytes_remaining -= bytes_consumed;
 
+        if((Error::NO_ERRORS == return_value)
+           && (::EmbeddedProto::FieldProcessingPhase::COMPLETE == state.child->phase))
+        {
+          // The child only returns NO_ERRORS in the COMPLETE phase after consuming an
+          // END_GROUP tag. That tag closes group framing, which is handled by
+          // deserialize_partial_as_group. Inside a length-delimited field it is
+          // malformed input, accepting it would end the nested message early with
+          // bytes of the section left unread.
+          return_value = Error::INVALID_WIRETYPE;
+        }
+
         if(0U == state.bytes_remaining)
         {
           // The whole nested message has been consumed. The child reports

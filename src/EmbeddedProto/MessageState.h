@@ -110,6 +110,8 @@ namespace EmbeddedProto
   template<uint32_t DEPTH>
   class MessageStateStack 
   {
+      static_assert(DEPTH > 0U, "MessageStateStack needs a DEPTH of at least one: the root message "
+                                "state lives at index zero and the constructor links DEPTH - 1 child states.");
 
     public:
       //! Constructor - links states together in parent-child chain.

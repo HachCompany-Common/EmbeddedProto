@@ -52,6 +52,15 @@ namespace EmbeddedProto
       virtual uint32_t get_max_size() const = 0;
 
       //! Obtain the total number of bytes still available in the buffer.
+      /*!
+          The value must never exceed the number of bytes a following push() actually
+          accepts. The partial serializers write a field tag and its value as a pair on the
+          strength of this value: once the tag is in the buffer the value has to fit, there
+          is no way to take the tag back. A buffer over-reporting its free space breaks that
+          guarantee and leaves a duplicate tag in the output on retry.
+
+          \return The number of bytes push() can still accept.
+      */
       virtual uint32_t get_available_size() const = 0;
 
       //! Push a single byte into the buffer.
