@@ -28,6 +28,7 @@
 #include "ReadBufferInterface.h"
 #include "Errors.h"
 
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <math.h>
@@ -83,6 +84,9 @@ namespace EmbeddedProto
       }
 
     public:
+      //! The largest number of bytes a varint can take, that of a 64-bit value.
+      static constexpr uint32_t VARINT_MAX_N_BYTES = 10;
+
       //! Definitions of the different encoding types used in protobuf.
       enum class WireType 
       {
@@ -182,11 +186,14 @@ namespace EmbeddedProto
         // The in-memory bytes already are the wire order, push them as one block.
         result = buffer.push(reinterpret_cast<const uint8_t*>(&value), sizeof(UINT_TYPE));
 #else
-        // Loop over all bytes in the integer.
-        for(uint8_t i = 0; (i < std::numeric_limits<UINT_TYPE>::digits) && result; i += 8) {
-          // Shift the value using the current value of i.
-          result = buffer.push(static_cast<uint8_t>((value >> i) & 0x00FF));
+        // Build the little-endian wire bytes locally and push them as one block, so the
+        // write is all-or-nothing just like on a little-endian target.
+        std::array<uint8_t, sizeof(UINT_TYPE)> bytes = {0};
+        for(uint32_t i = 0; i < static_cast<uint32_t>(sizeof(UINT_TYPE)); ++i)
+        {
+          bytes[i] = static_cast<uint8_t>((value >> (i * 8U)) & 0x00FFU);
         }
+        result = buffer.push(bytes.data(), static_cast<uint32_t>(bytes.size()));
 #endif
         return result ? Error::NO_ERRORS : Error::BUFFER_FULL;
       }
@@ -226,8 +233,9 @@ namespace EmbeddedProto
           Writes `count` values, each `sizeof(VAR_TYPE)` bytes wide, little-endian
           on the wire (protobuf packed fixed32/fixed64 layout). On a little-endian
           target the whole block is copied to the buffer with a single
-          push(bytes, length) call. On a big-endian target every value is emitted
-          byte-by-byte so the on-wire order stays little-endian.
+          push(bytes, length) call. On a big-endian target every value is byte
+          swapped into a local array and pushed as one block, so the on-wire order
+          stays little-endian and each value is still written all-or-nothing.
 
           This is used to batch packed repeated fixed32/sfixed32/float and
           fixed64/sfixed64/double fields into as few buffer writes as possible.
@@ -251,7 +259,7 @@ namespace EmbeddedProto
         const uint32_t n_bytes = count * static_cast<uint32_t>(sizeof(VAR_TYPE));
         return buffer.push(raw, n_bytes) ? Error::NO_ERRORS : Error::BUFFER_FULL;
 #else
-        // Big-endian fallback: emit every value in little-endian byte order.
+        // Big-endian fallback: every value is pushed as one little-endian block.
         using UINT_TYPE = typename std::conditional<4U == sizeof(VAR_TYPE),
                                                     uint32_t, uint64_t>::type;
         Error return_value = Error::NO_ERRORS;
@@ -648,6 +656,30 @@ namespace EmbeddedProto
 
       /** @} **/
 
+
+      //! Encode an unsigned integer as a varint into a local array instead of a buffer.
+      /*!
+        The caller can push the bytes as one block afterwards. The packed partial
+        serialization path relies on this to write an element all-or-nothing, so a
+        varint that does not fit is never written half and retried in full later.
+
+        \param[in] value The value to encode, a 32-bit value is zero extended.
+        \param[out] bytes The array receiving the encoded bytes.
+        \return The number of bytes used in the array, one up to VARINT_MAX_N_BYTES.
+      */
+      static uint32_t EncodeVarint(uint64_t value, std::array<uint8_t, VARINT_MAX_N_BYTES>& bytes)
+      {
+        uint32_t n_bytes = 0U;
+        while(value >= VARINT_MSB_BYTE)
+        {
+          bytes[n_bytes] = static_cast<uint8_t>(value | VARINT_MSB_BYTE);
+          value >>= VARINT_SHIFT_N_BITS;
+          ++n_bytes;
+        }
+        bytes[n_bytes] = static_cast<uint8_t>(value);
+        ++n_bytes;
+        return n_bytes;
+      }
 
       //! This function converts a given value unsigned integer to a varint formatted data buffer.
       /*!

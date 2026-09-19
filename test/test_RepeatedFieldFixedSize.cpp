@@ -34,6 +34,7 @@
 
 #include <array>
 #include <cstring>
+#include <limits>
 
 namespace test_EmbeddedAMS_RepeatedFieldFixedSize
 {
@@ -385,6 +386,86 @@ TEST(RepeatedFieldPacked, partial_serialize_fixed32_resumes_per_element)
   {
     EXPECT_EQ(expected[i], out[i]) << "byte " << i;
   }
+}
+
+// Partial (chunked) packed serialization of varint elements must write every
+// element all-or-nothing. When a multi-byte varint does not fit in the chunk
+// nothing of it may be written, so the retry in the next chunk does not
+// duplicate its leading bytes and bytes_remaining ends at exactly zero. The
+// reassembled output must equal the full-mode encoding: tag, size, payload.
+template<class FIELD, uint32_t CHUNK_SIZE>
+static void expect_partial_varint_matches_full(const FIELD& field)
+{
+  // Golden: tag (field 1, LEN) = 0x0A, one size byte, then the full-mode payload.
+  EmbeddedProto::WriteBufferFixedSize<64> full;
+  ASSERT_EQ(EmbeddedProto::Error::NO_ERRORS, field.serialize(full));
+  ASSERT_LT(full.get_size(), 128U);
+  std::array<uint8_t, 66> expected = {0x0A, static_cast<uint8_t>(full.get_size())};
+  for(uint32_t i = 0; i < full.get_size(); ++i) { expected[2 + i] = full.get_data()[i]; }
+  const uint32_t expected_len = 2U + full.get_size();
+
+  EmbeddedProto::MessageState state;
+  std::array<uint8_t, 66> out = {0};
+  uint32_t out_len = 0;
+  uint32_t guard = 0;
+  EmbeddedProto::Error r = EmbeddedProto::Error::NO_ERRORS;
+  while((EmbeddedProto::FieldProcessingPhase::COMPLETE != state.phase) && (guard++ < 100))
+  {
+    EmbeddedProto::WriteBufferFixedSize<CHUNK_SIZE> chunk;
+    r = field.serialize_partial_as_field(1, chunk, state, false);
+    ASSERT_TRUE((EmbeddedProto::Error::NO_ERRORS == r)
+                || (EmbeddedProto::Error::BUFFER_FULL == r));
+    ASSERT_LE(out_len + chunk.get_size(), out.size());
+    for(uint32_t i = 0; i < chunk.get_size(); ++i) { out[out_len++] = chunk.get_data()[i]; }
+  }
+  EXPECT_EQ(EmbeddedProto::FieldProcessingPhase::COMPLETE, state.phase);
+  EXPECT_EQ(0U, state.bytes_remaining);
+
+  ASSERT_EQ(expected_len, out_len);
+  for(uint32_t i = 0; i < expected_len; ++i)
+  {
+    EXPECT_EQ(expected[i], out[i]) << "byte " << i;
+  }
+}
+
+// Four two-byte varints (300 = 0xAC 0x02) through 3-byte chunks: after tag and
+// size only one byte is free, so the first element straddles the chunk boundary.
+TEST(RepeatedFieldPacked, partial_serialize_varint_resumes_per_element)
+{
+  EmbeddedProto::RepeatedFieldFixedSize<::EmbeddedProto::uint32, 4> field;
+  for(uint32_t i = 0; i < 4U; ++i) { field.add(300U); }
+  expect_partial_varint_matches_full<decltype(field), 3>(field);
+}
+
+// A ten-byte varint (uint64 max) must be encoded through the whole local array.
+// An 11-byte chunk holds tag and size plus nine bytes, so the first element does
+// not fit and is retried whole in the next chunk.
+TEST(RepeatedFieldPacked, partial_serialize_ten_byte_varint_resumes_whole)
+{
+  EmbeddedProto::RepeatedFieldFixedSize<::EmbeddedProto::uint64, 3> field;
+  field.add(std::numeric_limits<uint64_t>::max());
+  field.add(1U);
+  field.add(std::numeric_limits<uint64_t>::max());
+  expect_partial_varint_matches_full<decltype(field), 11>(field);
+}
+
+// Signed types must keep their own value mapping: sint32 is zig-zag encoded and
+// a negative int32 is truncated to a five-byte varint, exactly like full mode.
+// The five-byte value comes first so it straddles the 6-byte chunk holding the
+// tag and size.
+TEST(RepeatedFieldPacked, partial_serialize_signed_varint_matches_full)
+{
+  EmbeddedProto::RepeatedFieldFixedSize<::EmbeddedProto::sint32, 3> sfield;
+  sfield.add(std::numeric_limits<int32_t>::min());
+  sfield.add(-300);
+  sfield.add(-1);
+  expect_partial_varint_matches_full<decltype(sfield), 6>(sfield);
+
+  EmbeddedProto::RepeatedFieldFixedSize<::EmbeddedProto::int32, 3> ifield;
+  ifield.add(-1);
+  ifield.add(300);
+  ifield.add(std::numeric_limits<int32_t>::min());
+  expect_partial_varint_matches_full<decltype(ifield), 6>(ifield);
 }
 
 // Partial (chunked) packed deserialization must batch fixed-width reads yet keep

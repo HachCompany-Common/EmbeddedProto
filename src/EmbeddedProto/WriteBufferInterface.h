@@ -61,12 +61,17 @@ namespace EmbeddedProto
       */
       virtual bool push(const uint8_t byte) = 0;
 
-      //! Push an array of bytes into the buffer.
+      //! Push an array of bytes into the buffer, all-or-nothing.
       /*!
-          The given array will be appended after already addded data in the buffer.
+          The given array will be appended after already added data in the buffer.
+          This call is all-or-nothing: either every byte is appended and true is
+          returned, or the buffer is left untouched and false is returned. The
+          packed repeated field serialization depends on this contract to retry an
+          element cleanly after BUFFER_FULL, so an implementation may never append
+          only part of the array.
           \param[in] bytes Pointer to the array of bytes.
           \param[in] length The number of bytes in the array.
-          \return True when there was space to add the bytes.
+          \return True when there was space to add all the bytes.
       */
       virtual bool push(const uint8_t* bytes, const uint32_t length) = 0;
 
