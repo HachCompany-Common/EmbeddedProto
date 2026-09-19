@@ -246,25 +246,26 @@ namespace EmbeddedProto
             const uint32_t value_size = this->serialized_size();
             const uint32_t required_space = tag_size + value_size;
 
-            // Check available space - if not enough, rollback immediately
+            // The tag and value are written as a pair on the strength of this check, see
+            // WriteBufferInterface::get_available_size(). When the pair does not fit the
+            // state is left untouched so the retry starts at the tag again.
             if(buffer.get_available_size() < required_space)
             {
               return_value = Error::BUFFER_FULL;
-              // Important: Do NOT modify state when rolling back
-              return return_value; // Early return to prevent any state modification
-            }
-
-            // Write tag
-            return_value = WireFormatter::SerializeVarint(WireFormatter::MakeTag(field_number, WIRETYPE), buffer);
-            if(Error::NO_ERRORS == return_value)
-            {
-              state.phase = ::EmbeddedProto::FieldProcessingPhase::DATA;
             }
             else
             {
-              // Tag write failed - rollback state
-              return_value = Error::BUFFER_FULL;
-              return return_value; // Early return on tag write failure
+              return_value = WireFormatter::SerializeVarint(WireFormatter::MakeTag(field_number, WIRETYPE), buffer);
+              if(Error::NO_ERRORS == return_value)
+              {
+                state.phase = ::EmbeddedProto::FieldProcessingPhase::DATA;
+              }
+              else
+              {
+                // Defensive: a conforming buffer accepts the tag after the space check
+                // above. The state is untouched so a retry starts at the tag again.
+                return_value = Error::BUFFER_FULL;
+              }
             }
           }
 
@@ -278,11 +279,12 @@ namespace EmbeddedProto
             }
             else
             {
-              // Value write failed - rollback to TAG phase
+              // Defensive: a conforming buffer accepts the value after the space check
+              // in the TAG phase, so this branch cannot be reached. Should a buffer
+              // over-report its free space the tag is already in the buffer and cannot
+              // be taken back, a retry from the TAG phase writes it a second time.
               state.phase = ::EmbeddedProto::FieldProcessingPhase::TAG;
               return_value = Error::BUFFER_FULL;
-              // Note: We've already written the tag, so we can't fully rollback
-              // This is a partial write scenario that should be rare
             }
           }
         }
