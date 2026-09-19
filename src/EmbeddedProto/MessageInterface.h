@@ -89,10 +89,31 @@ class MessageInterface : public ::EmbeddedProto::Field
         This method deserializes the message in chunks, allowing deserialization to be paused
         when the buffer ends and resumed with a fresh buffer.
 
+        A top-level message carries no length prefix, so this function cannot tell where the
+        input ends. After the last field it returns to the tag phase and reports
+        Error::END_OF_BUFFER when no next tag is available. Only the caller knows whether more
+        data will arrive:
+
+        \code
+        Error result = Error::END_OF_BUFFER;
+        while((Error::END_OF_BUFFER == result) && receive_next_chunk(buffer))
+        {
+          result = msg.deserialize_partial(buffer, state.root());
+        }
+        const bool complete = (Error::END_OF_BUFFER == result)
+                              && (FieldProcessingPhase::TAG == state.root().phase);
+        \endcode
+
         \param buffer Read buffer (may be small).
         \param state External state object (must persist between calls).
-        \return Error::NO_ERRORS when complete.
-        \return Error::END_OF_BUFFER when buffer ended, call again with fresh buffer.
+        \return Error::END_OF_BUFFER with state.phase == FieldProcessingPhase::TAG when the buffer
+                ended at a field boundary. When the caller has no more input the message is
+                complete, otherwise call again with a fresh buffer.
+        \return Error::END_OF_BUFFER with any other phase when a field was cut, call again with a
+                fresh buffer.
+        \return Error::NO_ERRORS with state.phase == FieldProcessingPhase::COMPLETE when a
+                DELIMITED (group) message consumed its END_GROUP tag, see
+                deserialize_partial_as_group().
         \return Other errors on failure (state should be reset).
     */
     virtual Error deserialize_partial(ReadBufferInterface& buffer,
@@ -240,7 +261,15 @@ class MessageInterface : public ::EmbeddedProto::Field
       return return_value;
     }
 
-    //! \see Field::deserialize_partial_as_field()
+    //! Deserialize a length-delimited nested message field with partial state support.
+    /*!
+        Unlike a top-level message the nested message has a known size. Once the declared
+        number of bytes has been consumed the nested Error::END_OF_BUFFER is mapped to
+        Error::NO_ERRORS and this field is marked COMPLETE. Error::END_OF_BUFFER from this
+        function therefore always means more data is needed.
+
+        \see Field::deserialize_partial_as_field()
+    */
     Error deserialize_partial_as_field(ReadBufferInterface& buffer,
                                        MessageState& state) override;
 
@@ -248,7 +277,8 @@ class MessageInterface : public ::EmbeddedProto::Field
     /*!
         The opening START_GROUP tag has been consumed by the caller (phase DATA).
         The child is streamed until it consumes its matching END_GROUP, at which
-        point the child reports completion and this field is marked COMPLETE.
+        point the child returns Error::NO_ERRORS with phase COMPLETE and this field
+        is marked COMPLETE. Error::END_OF_BUFFER means more data is needed.
     */
     Error deserialize_partial_as_group(ReadBufferInterface& buffer,
                                        MessageState& state);
