@@ -84,6 +84,9 @@ namespace EmbeddedProto
       }
 
     public:
+      //! The largest number of bytes a varint can take, that of a 64-bit value.
+      static constexpr uint32_t VARINT_MAX_N_BYTES = 10;
+
       //! Definitions of the different encoding types used in protobuf.
       enum class WireType 
       {
@@ -656,7 +659,31 @@ namespace EmbeddedProto
 
       //! Encode an unsigned integer as a varint into a local array instead of a buffer.
       /*!
-        The caller can push the bytes asdata to be serialized, uint32_t or uint64_t.
+        The caller can push the bytes as one block afterwards. The packed partial
+        serialization path relies on this to write an element all-or-nothing, so a
+        varint that does not fit is never written half and retried in full later.
+
+        \param[in] value The value to encode, a 32-bit value is zero extended.
+        \param[out] bytes The array receiving the encoded bytes.
+        \return The number of bytes used in the array, one up to VARINT_MAX_N_BYTES.
+      */
+      static uint32_t EncodeVarint(uint64_t value, std::array<uint8_t, VARINT_MAX_N_BYTES>& bytes)
+      {
+        uint32_t n_bytes = 0U;
+        while(value >= VARINT_MSB_BYTE)
+        {
+          bytes[n_bytes] = static_cast<uint8_t>(value | VARINT_MSB_BYTE);
+          value >>= VARINT_SHIFT_N_BITS;
+          ++n_bytes;
+        }
+        bytes[n_bytes] = static_cast<uint8_t>(value);
+        ++n_bytes;
+        return n_bytes;
+      }
+
+      //! This function converts a given value unsigned integer to a varint formatted data buffer.
+      /*!
+        \param[in] value  The data to be serialized, uint32_t or uint64_t.
         \param[in] buffer A reference to a message buffer object in which to store the variable.
         \return A value from the Error enum, NO_ERROR in case everything is fine.
       */
