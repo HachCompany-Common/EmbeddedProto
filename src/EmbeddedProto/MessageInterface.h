@@ -256,6 +256,18 @@ class MessageInterface : public ::EmbeddedProto::Field
     //! When partially deserializing skip bytes in the buffer of an unknown field.
     Error skip_unknown_field_partial(::EmbeddedProto::ReadBufferInterface& buffer,
                                      MessageState& state) const;
+
+    //! When partially deserializing skip an unknown DELIMITED (group) field.
+    /*!
+        The START_GROUP tag has been consumed by the caller (phase DATA). The fields
+        inside the group are skipped one at a time through the child state until the
+        matching END_GROUP tag is consumed, at which point the phase is COMPLETE. A
+        nested group recurses one level further down the state chain. Returns
+        END_OF_BUFFER when the buffer runs out inside the group, to be resumed with
+        the next buffer.
+    */
+    Error skip_group_partial(::EmbeddedProto::ReadBufferInterface& buffer,
+                             MessageState& state) const;
 #endif
 
   protected:
@@ -483,6 +495,76 @@ class MessageInterface : public ::EmbeddedProto::Field
         else
         {
           return_value = Error::END_OF_BUFFER;
+        }
+      }
+    }
+    else if(::EmbeddedProto::WireFormatter::WireType::START_GROUP == state.wire_type)
+    {
+      // An unknown DELIMITED field: skip the whole group up to its END_GROUP.
+      if(::EmbeddedProto::FieldProcessingPhase::DATA == state.phase)
+      {
+        return_value = skip_group_partial(buffer, state);
+      }
+    }
+
+    return return_value;
+  }
+
+  inline Error MessageInterface::skip_group_partial(::EmbeddedProto::ReadBufferInterface& buffer,
+                                                    MessageState& state) const
+  {
+    Error return_value = Error::NO_ERRORS;
+
+    if(nullptr == state.child)
+    {
+      return_value = Error::NESTING_TOO_DEEP;
+    }
+    else
+    {
+      // The child state tracks the field inside the group currently being skipped.
+      // It is reset after every field, so a resume always continues where the
+      // previous buffer ran out: at the next tag or inside a field value.
+      MessageState& field = *state.child;
+      bool continue_skipping = true;
+      while(continue_skipping)
+      {
+        if(::EmbeddedProto::FieldProcessingPhase::TAG == field.phase)
+        {
+          field.field_id = 0U;
+          return_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, field.wire_type,
+                                                                        field.field_id);
+          if(Error::NO_ERRORS == return_value)
+          {
+            if(::EmbeddedProto::WireFormatter::WireType::END_GROUP == field.wire_type)
+            {
+              // The matching END_GROUP tag, nested groups are consumed by the
+              // recursion below. Leave the child clean for the next field.
+              state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
+              field.reset();
+              continue_skipping = false;
+            }
+            else
+            {
+              field.phase = (::EmbeddedProto::WireFormatter::WireType::LENGTH_DELIMITED == field.wire_type)
+                ? ::EmbeddedProto::FieldProcessingPhase::SIZE
+                : ::EmbeddedProto::FieldProcessingPhase::DATA;
+            }
+          }
+        }
+
+        if(continue_skipping && (Error::NO_ERRORS == return_value))
+        {
+          return_value = skip_unknown_field_partial(buffer, field);
+          if((Error::NO_ERRORS == return_value)
+             && (::EmbeddedProto::FieldProcessingPhase::COMPLETE == field.phase))
+          {
+            field.reset();
+          }
+        }
+
+        if(Error::NO_ERRORS != return_value)
+        {
+          continue_skipping = false;
         }
       }
     }
