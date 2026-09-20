@@ -291,11 +291,12 @@ class MessageInterface : public ::EmbeddedProto::Field
     //! When partially deserializing skip an unknown DELIMITED (group) field.
     /*!
         The START_GROUP tag has been consumed by the caller (phase DATA). The fields
-        inside the group are skipped one at a time through the child state until the
-        matching END_GROUP tag is consumed, at which point the phase is COMPLETE. A
-        nested group recurses one level further down the state chain. Returns
-        END_OF_BUFFER when the buffer runs out inside the group, to be resumed with
-        the next buffer.
+        inside the group are skipped one at a time until the matching END_GROUP tag is
+        consumed, at which point the phase is COMPLETE. Nested groups are counted, not
+        recursed into, so the skip takes no level of the state stack. The progress is
+        kept in the otherwise unused members of the group state itself, see
+        SKIP_GROUP_WIRE_TYPE_SHIFT. Returns END_OF_BUFFER when the buffer runs out
+        inside the group, to be resumed with the next buffer.
     */
     Error skip_group_partial(::EmbeddedProto::ReadBufferInterface& buffer,
                              MessageState& state) const;
@@ -317,6 +318,45 @@ class MessageInterface : public ::EmbeddedProto::Field
 
     //! Skip an unknown DELIMITED (group) field up to its matching END_GROUP.
     Error skip_group(::EmbeddedProto::ReadBufferInterface& buffer) const;
+
+#ifdef PARTIAL_SERIALIZATION_ENABLED
+    //! Layout of the group state while skipping an unknown DELIMITED (group) field.
+    /*!
+        The state of the unknown field keeps wire_type START_GROUP and phase DATA, which
+        routes it into skip_group_partial(). The members a group has no other use for
+        track the field currently being skipped inside the group:
+        - element_index holds the nesting depth of groups inside the unknown group,
+        - bytes_remaining holds the bytes still to skip of the inner field,
+        - size_value holds the wire type and phase of the inner field, packed as
+          (wire_type << SKIP_GROUP_WIRE_TYPE_SHIFT) | phase.
+        The initial size_value of zero decodes to phase TAG, the first inner tag.
+    */
+    static constexpr uint32_t SKIP_GROUP_WIRE_TYPE_SHIFT = 8U;
+
+    //! Mask of one packed inner field of the size_value, see SKIP_GROUP_WIRE_TYPE_SHIFT.
+    static constexpr uint32_t SKIP_GROUP_FIELD_MASK = 0xFFU;
+
+    //! Pack the wire type and phase of the inner field into size_value.
+    static constexpr uint32_t pack_skip_group_field(const WireFormatter::WireType wire_type,
+                                                    const FieldProcessingPhase phase)
+    {
+      return (static_cast<uint32_t>(wire_type) << SKIP_GROUP_WIRE_TYPE_SHIFT)
+             | static_cast<uint32_t>(phase);
+    }
+
+    //! Unpack the wire type of the inner field from size_value.
+    static constexpr WireFormatter::WireType skip_group_field_wire_type(const uint32_t size_value)
+    {
+      return static_cast<WireFormatter::WireType>((size_value >> SKIP_GROUP_WIRE_TYPE_SHIFT)
+                                                  & SKIP_GROUP_FIELD_MASK);
+    }
+
+    //! Unpack the phase of the inner field from size_value.
+    static constexpr FieldProcessingPhase skip_group_field_phase(const uint32_t size_value)
+    {
+      return static_cast<FieldProcessingPhase>(size_value & SKIP_GROUP_FIELD_MASK);
+    }
+#endif
 
 };
 
@@ -569,58 +609,80 @@ class MessageInterface : public ::EmbeddedProto::Field
   {
     Error return_value = Error::NO_ERRORS;
 
-    if(nullptr == state.child)
+    // The field inside the group currently being skipped, restored from the members of
+    // the group state, see SKIP_GROUP_WIRE_TYPE_SHIFT. It is cleared after every field,
+    // so a resume always continues where the previous buffer ran out: at the next tag
+    // or inside a field value.
+    MessageState field;
+    field.wire_type = skip_group_field_wire_type(state.size_value);
+    field.phase = skip_group_field_phase(state.size_value);
+    field.bytes_remaining = state.bytes_remaining;
+
+    bool continue_skipping = true;
+    while(continue_skipping)
     {
-      return_value = Error::NESTING_TOO_DEEP;
-    }
-    else
-    {
-      // The child state tracks the field inside the group currently being skipped.
-      // It is reset after every field, so a resume always continues where the
-      // previous buffer ran out: at the next tag or inside a field value.
-      MessageState& field = *state.child;
-      bool continue_skipping = true;
-      while(continue_skipping)
+      if(::EmbeddedProto::FieldProcessingPhase::TAG == field.phase)
       {
-        if(::EmbeddedProto::FieldProcessingPhase::TAG == field.phase)
+        return_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, field.wire_type,
+                                                                      field.field_id);
+        if(Error::NO_ERRORS == return_value)
         {
-          field.field_id = 0U;
-          return_value = ::EmbeddedProto::WireFormatter::DeserializeTag(buffer, field.wire_type,
-                                                                        field.field_id);
-          if(Error::NO_ERRORS == return_value)
+          if(::EmbeddedProto::WireFormatter::WireType::START_GROUP == field.wire_type)
           {
-            if(::EmbeddedProto::WireFormatter::WireType::END_GROUP == field.wire_type)
+            // A nested group, count it and go on with the tags inside it.
+            ++state.element_index;
+          }
+          else if(::EmbeddedProto::WireFormatter::WireType::END_GROUP == field.wire_type)
+          {
+            if(0U == state.element_index)
             {
-              // The matching END_GROUP tag, nested groups are consumed by the
-              // recursion below. Leave the child clean for the next field.
+              // The END_GROUP matching the unknown field, the skip is complete.
               state.phase = ::EmbeddedProto::FieldProcessingPhase::COMPLETE;
-              field.reset();
               continue_skipping = false;
             }
             else
             {
-              field.phase = (::EmbeddedProto::WireFormatter::WireType::LENGTH_DELIMITED == field.wire_type)
-                ? ::EmbeddedProto::FieldProcessingPhase::SIZE
-                : ::EmbeddedProto::FieldProcessingPhase::DATA;
+              // The END_GROUP of a nested group.
+              --state.element_index;
             }
           }
-        }
-
-        if(continue_skipping && (Error::NO_ERRORS == return_value))
-        {
-          return_value = skip_unknown_field_partial(buffer, field);
-          if((Error::NO_ERRORS == return_value)
-             && (::EmbeddedProto::FieldProcessingPhase::COMPLETE == field.phase))
+          else
           {
-            field.reset();
+            field.phase = (::EmbeddedProto::WireFormatter::WireType::LENGTH_DELIMITED == field.wire_type)
+              ? ::EmbeddedProto::FieldProcessingPhase::SIZE
+              : ::EmbeddedProto::FieldProcessingPhase::DATA;
           }
         }
+      }
 
-        if(Error::NO_ERRORS != return_value)
+      if(continue_skipping && (Error::NO_ERRORS == return_value)
+         && (::EmbeddedProto::FieldProcessingPhase::TAG != field.phase))
+      {
+        return_value = skip_unknown_field_partial(buffer, field);
+        if((Error::NO_ERRORS == return_value)
+           && (::EmbeddedProto::FieldProcessingPhase::COMPLETE == field.phase))
         {
-          continue_skipping = false;
+          field.reset();
         }
       }
+
+      if(Error::NO_ERRORS != return_value)
+      {
+        continue_skipping = false;
+      }
+    }
+
+    // Store the inner field for the next buffer, or clear it when the group is complete.
+    if(::EmbeddedProto::FieldProcessingPhase::COMPLETE == state.phase)
+    {
+      state.size_value = 0U;
+      state.bytes_remaining = 0U;
+      state.element_index = 0U;
+    }
+    else
+    {
+      state.size_value = pack_skip_group_field(field.wire_type, field.phase);
+      state.bytes_remaining = field.bytes_remaining;
     }
 
     return return_value;
