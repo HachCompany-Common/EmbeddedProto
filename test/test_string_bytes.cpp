@@ -330,13 +330,10 @@ TEST(FieldString, deserialize_partial_before_and_in_size)
 
 TEST(FieldString, deserialize_error_invalid_wiretype) 
 {
-  InSequence s;
-
   text<10> msg;
-  Mocks::ReadBufferMock buffer;
 
   // The first byte is an invalid wiretype
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x09), Return(true)));
+  ::EmbeddedProto::ReadBufferFixedSize<1> buffer({0x09});
   EXPECT_EQ(::EmbeddedProto::Error::INVALID_WIRETYPE, msg.deserialize(buffer));
   EXPECT_EQ(0, msg.get_txt().get_length());
 }
@@ -682,13 +679,10 @@ TEST(FieldBytes, deserialize_partial)
 
 TEST(FieldBytes, deserialize_error_invalid_wiretype) 
 {
-  InSequence s;
-
   raw_bytes<10> msg;
-  Mocks::ReadBufferMock buffer;
 
   // The first byte is an invalid wiretype
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x09), Return(true)));
+  ::EmbeddedProto::ReadBufferFixedSize<1> buffer({0x09});
   EXPECT_EQ(::EmbeddedProto::Error::INVALID_WIRETYPE, msg.deserialize(buffer));
   EXPECT_EQ(0, msg.get_b().get_length());
 }

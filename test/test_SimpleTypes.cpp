@@ -279,11 +279,9 @@ TEST(SimpleTypes, serialize_fault_buffer_full_varint)
 
 TEST(SimpleTypes, deserialize_zero) 
 {
-  InSequence s;
-  Mocks::ReadBufferMock buffer;
+  ::EmbeddedProto::ReadBufferFixedSize<1> buffer;
   ::Test_Simple_Types msg;
 
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
   EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
 
   EXPECT_EQ(0, msg.get_a_int32());   
@@ -657,19 +655,10 @@ TEST(SimpleTypes, deserialize_smalest_real)
 
 TEST(SimpleTypes, deserialize_fault_end_of_buffer_fixed)
 {
-  InSequence s;
-  Mocks::ReadBufferMock buffer;
-  
-  ON_CALL(buffer, get_size()).WillByDefault(Return(58));
-
   ::Test_Simple_Types msg;
 
-  std::array<uint8_t, 3> referee = {0x49, 0xFF, 0xFF}; // End half way through a fixed size value.
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
+  // End half way through a fixed size value.
+  ::EmbeddedProto::ReadBufferFixedSize<58> buffer({0x49, 0xFF, 0xFF});
 
   EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
 }
@@ -685,21 +674,11 @@ TEST(SimpleTypes, deserialize_fault_end_of_buffer_bool)
 
 TEST(SimpleTypes, deserialize_enum_beond_range)
 {
-  InSequence s;
-  Mocks::ReadBufferMock buffer;
-  
-  ON_CALL(buffer, get_size()).WillByDefault(Return(2));
-
   ::Test_Simple_Types msg;
 
   // This enum value is beond the range known to this code. Decodation should not fail. The value
   // should however not match to any of the known enum values.
-  std::array<uint8_t, 2> referee = {0x78, 0x03}; 
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<2> buffer({0x78, 0x03});
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 

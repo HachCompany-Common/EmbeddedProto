@@ -222,19 +222,11 @@ TEST(OneofField, serialize_second_oneof)
 
 TEST(OneofField, deserialize) 
 {
-  InSequence s;
-
   message_oneof msg;
-  Mocks::ReadBufferMock buffer;
 
-  std::array<uint8_t, 6> referee = { 0x08, 0x01,  // a
-                                     0x50, 0x01,  // b
-                                     0x30, 0x01 };// y
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<6> buffer({ 0x08, 0x01,   // a
+                                                   0x50, 0x01,   // b
+                                                   0x30, 0x01 });// y
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -246,20 +238,12 @@ TEST(OneofField, deserialize)
 
 TEST(OneofField, deserialize_override)
 {
-  InSequence s;
-
   message_oneof msg;
-  Mocks::ReadBufferMock buffer;
 
-  std::array<uint8_t, 8> referee = { 0x08, 0x01,  // a
-                                     0x50, 0x01,  // b
-                                     0x30, 0x01,  // y
-                                     0x28, 0x01 };// x 
-
-  for(auto r: referee) {
-    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<8> buffer({ 0x08, 0x01,   // a
+                                                   0x50, 0x01,   // b
+                                                   0x30, 0x01,   // y
+                                                   0x28, 0x01 });// x
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 

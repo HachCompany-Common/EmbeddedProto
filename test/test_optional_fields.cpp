@@ -344,15 +344,8 @@ TEST(OptionalFields, cleared_deserialization)
 {
   ::optional_fields<5,10> msg;
 
-  InSequence s;
-
-  Mocks::ReadBufferMock buffer;
-
-  static constexpr uint32_t SIZE = 0;
-
-  ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
-
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
+  // An empty buffer holds no field at all.
+  ::EmbeddedProto::ReadBufferFixedSize<1> buffer;
 
   EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, msg.deserialize(buffer));
 
