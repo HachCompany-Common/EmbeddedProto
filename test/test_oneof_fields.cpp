@@ -55,8 +55,8 @@ TEST(OneofField, serialize_zero)
   message_oneof msg;
   Mocks::WriteBufferMock buffer;
   
-  EXPECT_CALL(buffer, push(_)).Times(0);
-  EXPECT_CALL(buffer, push(_,_)).Times(0);
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(0);
+  EXPECT_CALL(buffer, push(Mocks::AnyConstView())).Times(0);
   EXPECT_CALL(buffer, get_available_size()).Times(0);
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
@@ -385,7 +385,7 @@ TEST(OneofField, sb_oneof_has)
   EXPECT_FALSE(msg.has_name());
   
   std::array<uint8_t, 3> d = {1, 2, 3};
-  msg.mutable_data().set(d.data(), 3);
+  msg.mutable_data().set(::EmbeddedProto::const_bytes_view{d.data(), 3});
   EXPECT_TRUE(msg.has_data());
   msg.clear_data();
   EXPECT_FALSE(msg.has_data());
@@ -1205,7 +1205,7 @@ TEST(OneofField, PartialSerialize_BytesOneof_SufficientBuffer)
   // Test 6.3: Bytes field within oneof
   ::string_bytes_oneof<20, 20> msg;
   std::array<uint8_t, 5> data = {0x01, 0x02, 0x03, 0x04, 0x05};
-  msg.mutable_data().set(data.data(), data.size());
+  msg.mutable_data().set(::EmbeddedProto::const_bytes_view{data.data(), static_cast<uint32_t>(data.size())});
 
   ::EmbeddedProto::WriteBufferFixedSize<10> buffer;
   ::string_bytes_oneof<20, 20>::StateStack state;
@@ -1227,7 +1227,7 @@ TEST(OneofField, PartialSerialize_BytesOneof_SplitDuringData)
   // Test 6.4: Split during bytes data
   ::string_bytes_oneof<20, 20> msg;
   std::array<uint8_t, 5> data = {0x01, 0x02, 0x03, 0x04, 0x05};
-  msg.mutable_data().set(data.data(), data.size());
+  msg.mutable_data().set(::EmbeddedProto::const_bytes_view{data.data(), static_cast<uint32_t>(data.size())});
 
   ::string_bytes_oneof<20, 20>::StateStack state;
 

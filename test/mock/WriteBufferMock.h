@@ -39,7 +39,7 @@ namespace Mocks
       {
         // Forward a block push byte by byte to push(uint8_t) unless a test expects the
         // block call itself. Tests that list the expected bytes keep working this way.
-        ON_CALL(*this, push(::testing::_, ::testing::_))
+        ON_CALL(*this, push(::testing::An<const ::EmbeddedProto::const_bytes_view&>()))
             .WillByDefault(::testing::Invoke(this, &WriteBufferMockBase::push_each_byte));
       }
 
@@ -49,14 +49,14 @@ namespace Mocks
       MOCK_CONST_METHOD0(get_available_size, uint32_t());
       
       MOCK_METHOD1(push, bool(uint8_t));
-      MOCK_METHOD2(push, bool(const uint8_t*, const uint32_t));
+      MOCK_METHOD1(push, bool(const ::EmbeddedProto::const_bytes_view&));
 
-      bool push_each_byte(const uint8_t* bytes, const uint32_t length)
+      bool push_each_byte(const ::EmbeddedProto::const_bytes_view& bytes)
       {
         bool result = true;
-        for(uint32_t i = 0; result && (i < length); ++i)
+        for(uint32_t i = 0; result && (i < bytes.size); ++i)
         {
-          result = push(bytes[i]);
+          result = push(bytes.data[i]);
         }
         return result;
       }
@@ -72,6 +72,18 @@ namespace Mocks
 
   //! Nice so the forwarded block pushes do not produce uninteresting-call warnings.
   using WriteBufferMock = ::testing::NiceMock<WriteBufferMockBase>;
+
+  //! Matcher for the block push(const_bytes_view) overload, selecting a view of the given size.
+  inline ::testing::Matcher<const ::EmbeddedProto::const_bytes_view&> ConstViewOfSize(const uint32_t size)
+  {
+    return ::testing::Field(&::EmbeddedProto::const_bytes_view::size, size);
+  }
+
+  //! Matcher for the block push(const_bytes_view) overload accepting a view of any size.
+  inline ::testing::Matcher<const ::EmbeddedProto::const_bytes_view&> AnyConstView()
+  {
+    return ::testing::An<const ::EmbeddedProto::const_bytes_view&>();
+  }
 
 } // End of namespace Mocks
 

@@ -140,28 +140,41 @@ namespace EmbeddedProto
         template<uint32_t RHS_LENGTH> 
         Error set(const FieldStringBytes<RHS_LENGTH, DATA_TYPE>& rhs)
         {
-          return this->set(rhs.get_const(), rhs.get_length());
+          return this->set(array_view<const DATA_TYPE>{rhs.get_const(), rhs.get_length()});
         }
 
-        //! Assign data in the given array to this object.
+        //! Assign the data in the given view to this object.
         /*!
-            \param[in] data A pointer to an array with data.
-            \param[in] length The number of bytes/chars in the data array.
-            \return Will return ARRAY_FULL when length exceeds the number of bytes/chars in this object.
-        */        
-        Error set(const DATA_TYPE* data, const uint32_t length)
+            \param[in] data A view on an array with data, data.size bytes/chars are copied.
+            \return Will return ARRAY_FULL when data.size exceeds the number of bytes/chars in this object.
+        */
+        Error set(const array_view<const DATA_TYPE>& data)
         {
           Error return_value = Error::NO_ERRORS;
-          if(MAX_LENGTH >= length)
+          if(MAX_LENGTH >= data.size)
           {
-            current_length_ = length;
-            memcpy(data_.data(), data, length);
+            current_length_ = data.size;
+            memcpy(data_.data(), data.data, data.size);
           }
           else
           {
             return_value = Error::ARRAY_FULL;
           }
           return return_value;
+        }
+
+        //! Assign data in the given array to this object, pointer and length form of set(const array_view<const DATA_TYPE>&).
+        /*!
+            \deprecated Use the array_view overload set(const array_view<const DATA_TYPE>&), a
+                        view keeps the pointer and its bound together.
+            \param[in] data A pointer to an array with data.
+            \param[in] length The number of bytes/chars in the data array.
+            \return Will return ARRAY_FULL when length exceeds the number of bytes/chars in this object.
+        */
+        [[deprecated("use the array_view overload set(const array_view<const DATA_TYPE>&)")]]
+        Error set(const DATA_TYPE* data, const uint32_t length)
+        {
+          return set(array_view<const DATA_TYPE>{data, length});
         }
 
         //! Compare the data held by this object with that of another string or bytes field.
@@ -195,7 +208,7 @@ namespace EmbeddedProto
           Error return_value = Error::NO_ERRORS;
           const auto* void_pointer = static_cast<const void*>(&(data_[0]));
           const auto* byte_pointer = static_cast<const uint8_t*>(void_pointer);
-          if(!buffer.push(byte_pointer, current_length_))
+          if(!buffer.push(const_bytes_view{byte_pointer, current_length_}))
           {
             return_value = Error::BUFFER_FULL;
           }
@@ -333,7 +346,7 @@ namespace EmbeddedProto
               const auto* byte_pointer = static_cast<const uint8_t*>(void_pointer);
 
               // Try to write all bytes at once first
-              if(buffer.push(byte_pointer, bytes_to_write))
+              if(buffer.push(const_bytes_view{byte_pointer, bytes_to_write}))
               {
                 state.bytes_remaining -= bytes_to_write;
                 if(0 == state.bytes_remaining)
@@ -551,7 +564,7 @@ namespace EmbeddedProto
       template<uint32_t RHS_LENGTH> 
       FieldString<MAX_LENGTH>& operator=(const FieldString<RHS_LENGTH>& rhs)
       {
-        this->set(rhs.get_const(), rhs.get_length());
+        this->set(::EmbeddedProto::const_string_view{rhs.get_const(), rhs.get_length()});
         return *this;
       }
 
@@ -712,7 +725,7 @@ namespace EmbeddedProto
       template<uint32_t RHS_LENGTH> 
       FieldBytes<MAX_LENGTH>& operator=(const FieldBytes<RHS_LENGTH>& rhs)
       {
-        this->set(rhs.get_const(), rhs.get_length());
+        this->set(::EmbeddedProto::const_bytes_view{rhs.get_const(), rhs.get_length()});
         return *this;
       }
 

@@ -96,7 +96,7 @@ TEST(RepeatedFieldCallback, random_access_is_unsupported)
 
   // set_data cannot store into a streaming field.
   int32 data[2];
-  EXPECT_EQ(Error::ARRAY_FULL, field.set_data(data, 2U));
+  EXPECT_EQ(Error::ARRAY_FULL, field.set_data(::EmbeddedProto::array_view<const int32>{data, 2U}));
 }
 
 bool produce_nothing(int32& element)

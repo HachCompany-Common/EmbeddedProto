@@ -162,10 +162,13 @@ namespace EmbeddedProto
 
       //! Copy a block of bytes out of the buffer, pointer and length form of pop(const bytes_view&).
       /*!
+          \deprecated Use the array_view overload pop(const bytes_view&), a view keeps the
+                      pointer and its bound together.
           \param[out] dest   Destination array which must be able to hold length bytes.
           \param[in]  length The number of bytes to copy out of the buffer.
           \return True when length bytes were available and copied into dest.
       */
+      [[deprecated("use the array_view overload pop(const bytes_view&)")]]
       virtual bool pop(uint8_t* dest, const uint32_t length)
       {
         return pop(bytes_view{dest, length});

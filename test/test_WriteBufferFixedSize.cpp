@@ -65,7 +65,7 @@ namespace test_EmbeddedAMS_WriteBufferFixedSize
     uint8_t data[DATA_SIZE] = {0, 1};
 
     EXPECT_EQ(3, buffer.get_available_size());
-    EXPECT_TRUE(buffer.push(data, DATA_SIZE));
+    EXPECT_TRUE(buffer.push(::EmbeddedProto::const_bytes_view{data, DATA_SIZE}));
     EXPECT_EQ(1, buffer.get_available_size());
 
     for(uint32_t i = 0; i < DATA_SIZE; ++i) 
@@ -74,7 +74,7 @@ namespace test_EmbeddedAMS_WriteBufferFixedSize
     }
 
     // Exceeds the space left.
-    EXPECT_FALSE(buffer.push(data, DATA_SIZE));
+    EXPECT_FALSE(buffer.push(::EmbeddedProto::const_bytes_view{data, DATA_SIZE}));
     EXPECT_EQ(1, buffer.get_available_size());
   }
 
@@ -89,7 +89,7 @@ namespace test_EmbeddedAMS_WriteBufferFixedSize
     uint8_t data[BUFFER_SIZE] = {10, 11, 12, 13};
 
     // Fill the whole buffer in one push.
-    EXPECT_TRUE(buffer.push(data, BUFFER_SIZE));
+    EXPECT_TRUE(buffer.push(::EmbeddedProto::const_bytes_view{data, BUFFER_SIZE}));
     EXPECT_EQ(0, buffer.get_available_size());
     for(uint32_t i = 0; i < BUFFER_SIZE; ++i)
     {
@@ -97,7 +97,7 @@ namespace test_EmbeddedAMS_WriteBufferFixedSize
     }
 
     // A further push of any length must now fail.
-    EXPECT_FALSE(buffer.push(data, 1));
+    EXPECT_FALSE(buffer.push(::EmbeddedProto::const_bytes_view{data, 1}));
     EXPECT_EQ(0, buffer.get_available_size());
   }
 
@@ -109,9 +109,23 @@ namespace test_EmbeddedAMS_WriteBufferFixedSize
 
     EXPECT_TRUE(buffer.push(0xAA));            // one byte used, 4 left
     uint8_t data[4] = {1, 2, 3, 4};
-    EXPECT_TRUE(buffer.push(data, 4));         // exactly fills remaining 4
+    EXPECT_TRUE(buffer.push(::EmbeddedProto::const_bytes_view{data, 4}));         // exactly fills remaining 4
     EXPECT_EQ(0, buffer.get_available_size());
   }
+
+  // The deprecated pointer and length form forwards to the view overload.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+  TEST(WriteBufferFixedSize, push_pointer_and_length_forwards_to_the_view)
+  {
+    EmbeddedProto::WriteBufferFixedSize<3> buffer;
+    const uint8_t data[2] = {1, 2};
+    EXPECT_TRUE(buffer.push(data, 2));
+    EXPECT_EQ(2, buffer.get_size());
+    EXPECT_FALSE(buffer.push(data, 2));
+    EXPECT_EQ(2, buffer.get_size());
+  }
+#pragma GCC diagnostic pop
 
   TEST(WriteBufferFixedSize, clear) 
   {

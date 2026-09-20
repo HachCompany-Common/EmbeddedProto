@@ -360,7 +360,7 @@ namespace EmbeddedProto
           {
             return_value = Error::CALLBACK_SIZE_MISMATCH;
           }
-          else if(!buffer.push(window_bytes(), produced))
+          else if(!buffer.push(const_bytes_view{window_bytes(), produced}))
           {
             return_value = Error::BUFFER_FULL;
           }

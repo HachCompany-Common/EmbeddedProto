@@ -102,7 +102,7 @@ TEST(OptionalFields, construction_assignment)
   msgA.mutable_pos().set_xpos(1.0F);
   msgA.set_state(states::B);
   msgA.mutable_bytes_array()[0] = 1U;
-  msgA.mutable_str().set("ABC", 3);
+  msgA.mutable_str().set(::EmbeddedProto::const_string_view{"ABC", 3});
 
   optional_fields<5,10> msgB(msgA);
   EXPECT_TRUE(msgB.has_b());
@@ -139,7 +139,7 @@ TEST(OptionalFields, clear)
   msg.mutable_pos().set_xpos(1.0F);
   msg.set_state(states::B);
   msg.mutable_bytes_array()[0] = 1U;
-  msg.mutable_str().set("ABC", 3);
+  msg.mutable_str().set(::EmbeddedProto::const_string_view{"ABC", 3});
 
   EXPECT_TRUE(msg.has_b());
   EXPECT_TRUE(msg.has_y());
@@ -249,7 +249,7 @@ TEST(OptionalFields, cleared_serialization)
   Mocks::WriteBufferMock buffer;
 
   // No data is expected to be pushed into the buffer.
-  EXPECT_CALL(buffer, push(_)).Times(0).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(0).WillOnce(Return(true));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
 }

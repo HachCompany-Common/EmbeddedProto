@@ -63,7 +63,7 @@ TEST(FieldOptions, oneof_clear)
   // for the options.
   Options::OneofWithMaxLength msg;
   uint8_t data[] = {1, 2, 3, 4, 5};
-  msg.mutable_b().set(data, 5);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{data, 5});
   EXPECT_EQ(100, msg.get_b().get_max_length());
   EXPECT_EQ(5, msg.get_b().get_length());
 

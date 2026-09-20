@@ -53,8 +53,8 @@ TEST(SimpleTypes, zero)
   // See if an empty message results in no data been pushed.
   ::Test_Simple_Types msg;
   Mocks::WriteBufferMock buffer;
-  EXPECT_CALL(buffer, push(_)).Times(0);
-  EXPECT_CALL(buffer, push(_,_)).Times(0);
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(0);
+  EXPECT_CALL(buffer, push(Mocks::AnyConstView())).Times(0);
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
 
@@ -84,9 +84,9 @@ TEST(SimpleTypes, serialize_fixed_is_one_block_push)
   Mocks::WriteBufferMock buffer;
   // Tag byte by byte, value as one block, for both fixed32 and float.
   EXPECT_CALL(buffer, push(0x65)).Times(1).WillOnce(Return(true));
-  EXPECT_CALL(buffer, push(_, 4U)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(Mocks::ConstViewOfSize(4U))).Times(1).WillOnce(Return(true));
   EXPECT_CALL(buffer, push(0x75)).Times(1).WillOnce(Return(true));
-  EXPECT_CALL(buffer, push(_, 4U)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(Mocks::ConstViewOfSize(4U))).Times(1).WillOnce(Return(true));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
 }
@@ -268,10 +268,10 @@ TEST(SimpleTypes, serialize_fault_buffer_full_varint)
   msg.set_a_uint32(std::numeric_limits<uint32_t>::max());
 
   // Allow for some bytes to be serialized
-  EXPECT_CALL(buffer, push(_)).Times(1).WillOnce(Return(true));
-  EXPECT_CALL(buffer, push(_)).Times(1).WillOnce(Return(true));  
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(1).WillOnce(Return(true));  
   // And then fail
-  EXPECT_CALL(buffer, push(_)).Times(2).WillOnce(Return(false));
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(2).WillOnce(Return(false));
 
   EXPECT_EQ(::EmbeddedProto::Error::BUFFER_FULL, msg.serialize(buffer));
 

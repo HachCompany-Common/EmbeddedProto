@@ -60,8 +60,8 @@ TEST(RepeatedFieldMessage, serialize_empty_fields)
   repeated_fields<Y_SIZE> msg;
 
   Mocks::WriteBufferMock buffer;
-  EXPECT_CALL(buffer, push(_)).Times(0);
-  EXPECT_CALL(buffer, push(_,_)).Times(0);
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(0);
+  EXPECT_CALL(buffer, push(Mocks::AnyConstView())).Times(0);
   EXPECT_CALL(buffer, get_available_size()).WillRepeatedly(Return(99));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
@@ -74,8 +74,8 @@ TEST(RepeatedFieldMessage, serialize_empty_message)
   repeated_message<Y_SIZE> msg;
 
   Mocks::WriteBufferMock buffer;
-  EXPECT_CALL(buffer, push(_)).Times(0);
-  EXPECT_CALL(buffer, push(_,_)).Times(0);
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(0);
+  EXPECT_CALL(buffer, push(Mocks::AnyConstView())).Times(0);
   EXPECT_CALL(buffer, get_available_size()).WillRepeatedly(Return(99));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));

@@ -79,12 +79,13 @@ namespace EmbeddedProto
         return true;
       }
 
-      //! Increment the size with the given length.
-      bool push(const uint8_t* bytes, const uint32_t length) override
+      //! Keep the pointer and length form of push() reachable next to the override below.
+      using WriteBufferInterface::push;
+
+      //! Increment the size with the number of bytes in the view.
+      bool push(const const_bytes_view& bytes) override
       {
-        // Ignore the unused parameter
-        (void)bytes;
-        size_ += length;
+        size_ += bytes.size;
         return true;
       }
 

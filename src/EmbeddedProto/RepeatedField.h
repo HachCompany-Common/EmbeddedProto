@@ -171,13 +171,26 @@ namespace EmbeddedProto
       */
       virtual void set(uint32_t index, const DATA_TYPE& value) = 0;
 
-      //! Given a different array of known length copy that data into this object.
+      //! Given a view on a different array copy that data into this object.
       /*!
+        \param[in] data A view on the array to copy from, data.size values of DATA_TYPE are copied.
+        \return Error::NO_ERRORS when every was successful. Error::ARRAY_FULL when there is no space left.
+      */
+      virtual Error set_data(const array_view<const DATA_TYPE>& data) = 0;
+
+      //! Copy an array into this object, pointer and length form of set_data(const array_view<const DATA_TYPE>&).
+      /*!
+        \deprecated Use the array_view overload set_data(const array_view<const DATA_TYPE>&), a
+                    view keeps the pointer and its bound together.
         \param[in] data A pointer the array to copy from.
         \param[in] length The number of value of DATA_TYPE in the array.
         \return Error::NO_ERRORS when every was successful. Error::ARRAY_FULL when there is no space left.
       */
-      virtual Error set_data(const DATA_TYPE* data, const uint32_t length) = 0;
+      [[deprecated("use the array_view overload set_data(const array_view<const DATA_TYPE>&)")]]
+      virtual Error set_data(const DATA_TYPE* data, const uint32_t length)
+      {
+        return set_data(array_view<const DATA_TYPE>{data, length});
+      }
 
       //! Append a value to the end of the array.
       /*!
@@ -452,7 +465,7 @@ namespace EmbeddedProto
     private:
       //! Serialize a single packed element with one all-or-nothing push.
       /*!
-          Every scalar element is written with a single push(bytes, length) call.
+          Every scalar element is written with a single push(const_bytes_view) call.
           Fixed-width values push their little-endian bytes directly, varint values
           (integers, bools and enums) are first encoded into a local array. This
           keeps the resumable partial path correct: when the element does not fit,
@@ -471,7 +484,7 @@ namespace EmbeddedProto
       {
         using VAR = typename internal::PackedFixedTraits<DATA_TYPE>::scalar_type;
         const VAR value = this->get_const(index).get();
-        return WireFormatter::SerializeFixedArrayNoTag(&value, 1U, buffer);
+        return WireFormatter::SerializeFixedArrayNoTag(array_view<const VAR>{&value, 1U}, buffer);
       }
 
       Error serialize_packed_element_(uint32_t index, WriteBufferInterface& buffer,
@@ -483,8 +496,8 @@ namespace EmbeddedProto
           std::array<uint8_t, WireFormatter::VARINT_MAX_N_BYTES> bytes = {0};
           const uint32_t n_bytes = WireFormatter::EncodeVarint(
                                       packed_varint_value(this->get_const(index)), bytes);
-          return_value = buffer.push(bytes.data(), n_bytes) ? Error::NO_ERRORS
-                                                            : Error::BUFFER_FULL;
+          return_value = buffer.push(const_bytes_view{bytes.data(), n_bytes}) ? Error::NO_ERRORS
+                                                                              : Error::BUFFER_FULL;
         }
         else
         {
@@ -830,7 +843,7 @@ namespace EmbeddedProto
         if constexpr(internal::PackedFixedTraits<DATA_TYPE>::is_fixed_width)
         {
           using VAR = typename internal::PackedFixedTraits<DATA_TYPE>::scalar_type;
-          return WireFormatter::DeserializeFixedArrayNoTag<VAR>(&element.get(), 1U, section);
+          return WireFormatter::DeserializeFixedArrayNoTag(array_view<VAR>{&element.get(), 1U}, section);
         }
         else
         {

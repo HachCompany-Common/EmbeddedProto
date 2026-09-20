@@ -70,7 +70,7 @@ TEST(CustomStorage, roundtrip_all_fields)
   msg.mutable_values().add(20U);
   msg.mutable_text().set("hi");
   const uint8_t raw[] = {0x01, 0x02, 0x03};
-  msg.mutable_data().set(raw, 3U);
+  msg.mutable_data().set(::EmbeddedProto::const_bytes_view{raw, 3U});
   msg.mutable_nested().set_value(7);
 
   ::EmbeddedProto::WriteBufferFixedSize<128> buffer;

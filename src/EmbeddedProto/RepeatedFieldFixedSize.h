@@ -146,18 +146,19 @@ namespace EmbeddedProto
         data_[limited_index] = value;  
       }
 
-      Error set_data(const DATA_TYPE* data, const uint32_t length) override 
+      //! Keep the pointer and length form of set_data() reachable next to the override below.
+      using RepeatedField<DATA_TYPE>::set_data;
+
+      Error set_data(const array_view<const DATA_TYPE>& data) override 
       {
         Error return_value = Error::NO_ERRORS;
-        if(MAX_LENGTH >= length) 
+        if(MAX_LENGTH >= data.size) 
         {
-          const DATA_TYPE* d = data;
-          for(uint32_t i = 0; i < length; ++i) 
+          for(uint32_t i = 0; i < data.size; ++i) 
           {
-            (data_[i]) = (*d);
-            ++d;
+            data_[i] = data.data[i];
           }
-          current_length_ = length;        
+          current_length_ = data.size;        
         }
         else 
         {
@@ -211,7 +212,7 @@ namespace EmbeddedProto
       /*!
           For packed fixed-width scalar element types (fixed32/sfixed32/float and
           fixed64/sfixed64/double) the contiguous backing array is written to the
-          buffer as a single whole-block push(bytes, length) on a little-endian
+          buffer as a single whole-block push(const_bytes_view) on a little-endian
           target instead of one virtual call per byte. All other element types
           fall back to the element-by-element base implementation.
       */
@@ -296,7 +297,7 @@ namespace EmbeddedProto
            && (buffer.get_size() >= size))
         {
           VAR* const raw = reinterpret_cast<VAR*>(data_.data()) + current_length_;
-          return_value = WireFormatter::DeserializeFixedArrayNoTag(raw, count, buffer);
+          return_value = WireFormatter::DeserializeFixedArrayNoTag(array_view<VAR>{raw, count}, buffer);
           if(Error::NO_ERRORS == return_value)
           {
             current_length_ += count;
@@ -336,7 +337,8 @@ namespace EmbeddedProto
         if(0U < current_length_)
         {
           const VAR* const raw = reinterpret_cast<const VAR*>(data_.data());
-          return_value = WireFormatter::SerializeFixedArrayNoTag(raw, current_length_, buffer);
+          return_value = WireFormatter::SerializeFixedArrayNoTag(array_view<const VAR>{raw, current_length_},
+                                                                 buffer);
         }
         return return_value;
       }

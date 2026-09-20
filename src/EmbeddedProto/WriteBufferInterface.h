@@ -24,6 +24,8 @@
 #ifndef _WRITE_BUFFER_INTERFACE_H_
 #define _WRITE_BUFFER_INTERFACE_H_
 
+#include "Defines.h"
+
 #include <cstdint>
 
 
@@ -88,11 +90,24 @@ namespace EmbeddedProto
           packed repeated field serialization depends on this contract to retry an
           element cleanly after BUFFER_FULL, so an implementation may never append
           only part of the array.
+          \param[in] bytes A view on the array of bytes, bytes.size bytes are appended.
+          \return True when there was space to add all the bytes.
+      */
+      virtual bool push(const const_bytes_view& bytes) = 0;
+
+      //! Push an array of bytes into the buffer, pointer and length form of push(const const_bytes_view&).
+      /*!
+          \deprecated Use the array_view overload push(const const_bytes_view&), a view keeps
+                      the pointer and its bound together.
           \param[in] bytes Pointer to the array of bytes.
           \param[in] length The number of bytes in the array.
           \return True when there was space to add all the bytes.
       */
-      virtual bool push(const uint8_t* bytes, const uint32_t length) = 0;
+      [[deprecated("use the array_view overload push(const const_bytes_view&)")]]
+      virtual bool push(const uint8_t* bytes, const uint32_t length)
+      {
+        return push(const_bytes_view{bytes, length});
+      }
 
       //! Account for a number of payload bytes without pushing their values.
       /*!
