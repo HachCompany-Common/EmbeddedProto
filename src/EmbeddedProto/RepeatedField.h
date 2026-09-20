@@ -101,6 +101,25 @@ namespace EmbeddedProto
       static constexpr Field::FieldTypes value = F;
     };
 
+    //! Helper trait telling if DATA_TYPE is a scalar or enum which goes on the wire as a varint.
+    template<typename>
+    struct is_varint_field : std::false_type {};
+
+    template<Field::FieldTypes F, typename V, WireFormatter::WireType W, uint32_t S>
+    struct is_varint_field<::EmbeddedProto::FieldTemplate<F, V, W, S>>
+      : std::integral_constant<bool, WireFormatter::WireType::VARINT == W> {};
+
+    //! Whether a packed block of this field holds varints, the case the windowed decode covers.
+    static constexpr bool PACKED_VARINT_ELEMENTS = is_varint_field<DATA_TYPE>::value;
+
+    //! The number of bytes peeked at once when decoding packed varint elements.
+    static constexpr uint32_t PACKED_VARINT_WINDOW_N_BYTES = 32U;
+
+    // A window holds at least one whole varint, so an element cut by the window end always
+    // follows decoded bytes and the next window starts with it.
+    static_assert(WireFormatter::VARINT_MAX_N_BYTES <= PACKED_VARINT_WINDOW_N_BYTES,
+                  "The packed varint window must hold the largest varint.");
+
     //! This class only supports Field and FieldTemplate classes as template parameter.
     static_assert(std::is_base_of<::EmbeddedProto::Field, DATA_TYPE>::value || is_specialization_of_FieldTemplate<DATA_TYPE>::value, 
                   "A Field can only be used as template paramter.");
@@ -317,21 +336,36 @@ namespace EmbeddedProto
           {
             ReadBufferSection section(buffer, state.bytes_remaining);
             const uint32_t section_size_before = section.get_size();
-            DATA_TYPE element;
-            Error element_result = deserialize_packed_partial_element(element, section);
+            Error element_result = Error::NO_ERRORS;
 
-            while(Error::NO_ERRORS == element_result)
+            if constexpr(PACKED_VARINT_ELEMENTS)
             {
-              return_value = this->add(element);
-              if(Error::NO_ERRORS == return_value)
-              {
-                ++state.element_index;
-                element_result = deserialize_packed_partial_element(element, section);
-              }
-              else
+              Error add_result = Error::NO_ERRORS;
+              element_result = deserialize_packed_varints(section, state.element_index, add_result);
+              if(Error::NO_ERRORS != add_result)
               {
                 return_value = Error::ARRAY_FULL;
                 element_result = Error::ARRAY_FULL;
+              }
+            }
+            else
+            {
+              DATA_TYPE element;
+              element_result = deserialize_packed_partial_element(element, section);
+
+              while(Error::NO_ERRORS == element_result)
+              {
+                return_value = this->add(element);
+                if(Error::NO_ERRORS == return_value)
+                {
+                  ++state.element_index;
+                  element_result = deserialize_packed_partial_element(element, section);
+                }
+                else
+                {
+                  return_value = Error::ARRAY_FULL;
+                  element_result = Error::ARRAY_FULL;
+                }
               }
             }
 
@@ -760,19 +794,35 @@ namespace EmbeddedProto
           error occurs. Takes the base ReadBufferInterface: the boundary is
           enforced by the section object through virtual dispatch, so the concrete
           type is not needed here. Shared with the fixed-width override for its
-          fall-back cases.
+          fall-back cases. Varint elements are decoded through a local window, see
+          deserialize_packed_varints().
       */
       Error deserialize_packed_section(ReadBufferInterface& buffer)
       {
-        DATA_TYPE x;
+        Error return_value = Error::NO_ERRORS;
 
-        Error return_value = x.deserialize(buffer);
-        while(Error::NO_ERRORS == return_value)
+        if constexpr(PACKED_VARINT_ELEMENTS)
         {
-          return_value = this->add(x);
-          if(Error::NO_ERRORS == return_value)
+          uint32_t n_elements = 0U;
+          Error add_result = Error::NO_ERRORS;
+          return_value = deserialize_packed_varints(buffer, n_elements, add_result);
+          if(Error::NO_ERRORS != add_result)
           {
-            return_value = x.deserialize(buffer);
+            return_value = add_result;
+          }
+        }
+        else
+        {
+          DATA_TYPE x;
+
+          return_value = x.deserialize(buffer);
+          while(Error::NO_ERRORS == return_value)
+          {
+            return_value = this->add(x);
+            if(Error::NO_ERRORS == return_value)
+            {
+              return_value = x.deserialize(buffer);
+            }
           }
         }
 
@@ -822,6 +872,149 @@ namespace EmbeddedProto
         else 
         {
           return_value = Error::ARRAY_FULL;
+        }
+
+        return return_value;
+      }
+
+      //! Decode the packed varint elements of a section through a local window and add them.
+      /*!
+          The section is peeked in blocks of up to PACKED_VARINT_WINDOW_N_BYTES, one
+          buffer call for several elements instead of one per byte. The elements are
+          decoded from the local copy and the section is advanced by the bytes they took.
+          An element cut by the window end is decoded from the next window. An element
+          cut by the section end consumes nothing, so a partial deserialization resumes
+          at that element once more data arrived. An element which does not fit the
+          array is consumed, as it is when read element by element.
+
+          \param[in] buffer The section holding the packed block.
+          \param[out] n_elements Incremented for every element added.
+          \param[out] add_result The result of the add() which stopped the loop, NO_ERRORS when none did.
+          \return END_OF_BUFFER when the section is exhausted or ends inside an element, a
+                  decoding error, or NO_ERRORS when add() stopped the loop.
+      */
+      Error deserialize_packed_varints(ReadBufferInterface& buffer, uint32_t& n_elements, Error& add_result)
+      {
+        std::array<uint8_t, PACKED_VARINT_WINDOW_N_BYTES> window = {0};
+        DATA_TYPE element;
+        Error return_value = Error::NO_ERRORS;
+        add_result = Error::NO_ERRORS;
+
+        while((Error::NO_ERRORS == return_value) && (Error::NO_ERRORS == add_result))
+        {
+          const uint32_t n_section = buffer.get_size();
+          const uint32_t n_window = EmbeddedProto::min(PACKED_VARINT_WINDOW_N_BYTES, n_section);
+
+          if((0U < n_window) && buffer.peek(bytes_view{window.data(), n_window}))
+          {
+            uint32_t offset = 0U;
+            bool window_done = false;
+            while(!window_done)
+            {
+              uint32_t n_used = 0U;
+              const Error element_result = decode_packed_varint(
+                  const_bytes_view{&window[offset], n_window - offset}, element, n_used);
+
+              if(Error::NO_ERRORS == element_result)
+              {
+                offset += n_used;
+                add_result = this->add(element);
+                if(Error::NO_ERRORS == add_result)
+                {
+                  ++n_elements;
+                }
+              }
+              else if((Error::END_OF_BUFFER == element_result) && (n_window < n_section))
+              {
+                // Cut by the window end, not by the section end: the next window starts with it.
+              }
+              else
+              {
+                // The section ends inside the element, which then consumed nothing, or the
+                // varint is overlong, which consumed its bytes as DeserializeVarint() does.
+                offset += n_used;
+                return_value = element_result;
+              }
+
+              window_done = (Error::NO_ERRORS != element_result) || (Error::NO_ERRORS != add_result)
+                            || (offset >= n_window);
+            }
+
+            if(0U < offset)
+            {
+              static_cast<void>(buffer.advance(offset));
+            }
+          }
+          else
+          {
+            return_value = Error::END_OF_BUFFER;
+          }
+        }
+
+        return return_value;
+      }
+
+      //! Decode one packed varint element from a local array, the counterpart of packed_varint_value().
+      /*!
+          Mirrors the conversions of the matching FieldTemplate::deserialize(): uint32 and
+          enum values are decoded as 32-bit varints, int32, int64, sint32, sint64 and
+          uint64 values as 64-bit ones since some implementations serialize 32-bit values
+          with ten bytes, sint values are zig-zag decoded and a bool is one byte.
+
+          \param[in] bytes The bytes to decode, the element starts at the first one.
+          \param[out] element The element receiving the value, only set when NO_ERRORS is returned.
+          \param[out] n_used The number of bytes the element took, zero when the array ended before it closed.
+          \return As WireFormatter::DecodeVarint().
+      */
+      static Error decode_packed_varint(const const_bytes_view& bytes, DATA_TYPE& element, uint32_t& n_used)
+      {
+        constexpr Field::FieldTypes FIELD_TYPE = fieldtemplate_field_type<DATA_TYPE>::value;
+        using VALUE_TYPE = typename DATA_TYPE::TYPE;
+        Error return_value = Error::NO_ERRORS;
+
+        if constexpr(Field::FieldTypes::boolean == FIELD_TYPE)
+        {
+          n_used = 0U;
+          if(0U < bytes.size)
+          {
+            element.set(0U != bytes.data[0]);
+            n_used = 1U;
+          }
+          else
+          {
+            return_value = Error::END_OF_BUFFER;
+          }
+        }
+        else if constexpr((Field::FieldTypes::uint32 == FIELD_TYPE)
+                          || (Field::FieldTypes::enumeration == FIELD_TYPE))
+        {
+          uint32_t value = 0U;
+          return_value = WireFormatter::DecodeVarint(bytes, value, n_used);
+          if(Error::NO_ERRORS == return_value)
+          {
+            element.set(static_cast<VALUE_TYPE>(value));
+          }
+        }
+        else if constexpr((Field::FieldTypes::sint32 == FIELD_TYPE)
+                          || (Field::FieldTypes::sint64 == FIELD_TYPE))
+        {
+          using UINT_TYPE = typename std::make_unsigned<VALUE_TYPE>::type;
+          uint64_t value = 0U;
+          return_value = WireFormatter::DecodeVarint(bytes, value, n_used);
+          if(Error::NO_ERRORS == return_value)
+          {
+            element.set(WireFormatter::ZigZagDecode(static_cast<UINT_TYPE>(value)));
+          }
+        }
+        else
+        {
+          // int32, int64 and uint64.
+          uint64_t value = 0U;
+          return_value = WireFormatter::DecodeVarint(bytes, value, n_used);
+          if(Error::NO_ERRORS == return_value)
+          {
+            element.set(static_cast<VALUE_TYPE>(value));
+          }
         }
 
         return return_value;

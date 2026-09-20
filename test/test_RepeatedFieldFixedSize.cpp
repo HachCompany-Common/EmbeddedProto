@@ -379,6 +379,109 @@ TEST(RepeatedFieldPacked, full_deserialize_fixed32_is_one_block_pop)
 }
 #endif // EMBEDDED_PROTO_LITTLE_ENDIAN
 
+// A packed varint block is peeked as one window, decoded locally and consumed with
+// one advance, never a peek per byte. Only the size prefix is read byte by byte.
+TEST(RepeatedFieldPacked, full_deserialize_varint_is_one_window_peek)
+{
+  const std::array<uint32_t, 6> values = {1U, 300U, 16384U, 0x0FFFFFFFU, 0xFFFFFFFFU, 2U};
+  const uint8_t payload[16] = {0x01, 0xAC, 0x02, 0x80, 0x80, 0x01, 0xFF, 0xFF, 0xFF, 0x7F,
+                               0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0x02};
+
+  NiceMock<Mocks::ReadBufferMock> buffer;
+  ON_CALL(buffer, get_size()).WillByDefault(Return(16));
+
+  // Size varint (0x10 == 16) is the only per-byte peek.
+  EXPECT_CALL(buffer, peek(_, _)).Times(1)
+      .WillOnce(DoAll(SetArgReferee<1>(0x10), Return(true)));
+  EXPECT_CALL(buffer, advance(1)).Times(1).WillOnce(Return(true));
+  // The whole block is peeked once and consumed once.
+  EXPECT_CALL(buffer, peek(Mocks::ViewOfSize(16U))).Times(1).WillOnce(
+      [&](const ::EmbeddedProto::bytes_view& dst){ memcpy(dst.data, payload, dst.size); return true; });
+  EXPECT_CALL(buffer, advance(16)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, peek(An<uint8_t&>())).Times(0);
+  EXPECT_CALL(buffer, pop(An<uint8_t&>())).Times(0);
+
+  EmbeddedProto::RepeatedFieldFixedSize<::EmbeddedProto::uint32, 8> field;
+  ASSERT_EQ(EmbeddedProto::Error::NO_ERRORS, field.deserialize(buffer));
+  ASSERT_EQ(values.size(), field.get_length());
+  for(uint32_t i = 0; i < values.size(); ++i)
+  {
+    EXPECT_EQ(values[i], field.get_const(i));
+  }
+}
+
+// The packed varint bytes used by the window tests below: 31 one byte elements, a
+// two byte element (300) straddling the 32 byte window end and three more.
+static constexpr uint32_t WINDOW_TEST_N_ELEMENTS = 35U;
+static constexpr uint32_t WINDOW_TEST_N_BYTES = 36U;
+
+static void fill_window_test_payload(::EmbeddedProto::ReadBufferFixedSize<64>& buffer)
+{
+  for(uint32_t i = 1U; i <= 31U; ++i)
+  {
+    buffer.push(static_cast<uint8_t>(i));
+  }
+  buffer.push(0xAC);
+  buffer.push(0x02);
+  buffer.push(33U);
+  buffer.push(34U);
+  buffer.push(35U);
+}
+
+static void expect_window_test_values(const EmbeddedProto::RepeatedFieldFixedSize<::EmbeddedProto::uint32, 40>& field)
+{
+  ASSERT_EQ(WINDOW_TEST_N_ELEMENTS, field.get_length());
+  for(uint32_t i = 0; i < WINDOW_TEST_N_ELEMENTS; ++i)
+  {
+    const uint32_t expected = (31U == i) ? 300U : (i + 1U);
+    EXPECT_EQ(expected, field.get_const(i)) << "element " << i;
+  }
+}
+
+// An element cut by the end of the local window is decoded from the next window.
+TEST(RepeatedFieldPacked, full_deserialize_varint_straddling_the_window)
+{
+  EmbeddedProto::ReadBufferFixedSize<64> buffer({static_cast<uint8_t>(WINDOW_TEST_N_BYTES)});
+  fill_window_test_payload(buffer);
+
+  EmbeddedProto::RepeatedFieldFixedSize<::EmbeddedProto::uint32, 40> field;
+  ASSERT_EQ(EmbeddedProto::Error::NO_ERRORS, field.deserialize(buffer));
+  expect_window_test_values(field);
+  EXPECT_EQ(0U, buffer.get_size());
+}
+
+#ifdef PARTIAL_SERIALIZATION_ENABLED
+// An element cut by the end of the section consumes nothing, so the partial
+// deserialization resumes at that element once it arrives whole.
+TEST(RepeatedFieldPacked, partial_deserialize_varint_straddling_the_window_and_split)
+{
+  EmbeddedProto::RepeatedFieldFixedSize<::EmbeddedProto::uint32, 40> field;
+  EmbeddedProto::MessageState state;
+  state.phase = EmbeddedProto::FieldProcessingPhase::SIZE;
+
+  // Buffer 1: size prefix, the 31 one byte elements and the first byte of 300.
+  EmbeddedProto::ReadBufferFixedSize<64> buffer1({static_cast<uint8_t>(WINDOW_TEST_N_BYTES)});
+  for(uint32_t i = 1U; i <= 31U; ++i)
+  {
+    buffer1.push(static_cast<uint8_t>(i));
+  }
+  buffer1.push(0xAC);
+
+  EXPECT_EQ(EmbeddedProto::Error::END_OF_BUFFER, field.deserialize_partial_as_field(buffer1, state));
+  EXPECT_EQ(EmbeddedProto::FieldProcessingPhase::DATA, state.phase);
+  EXPECT_EQ(31U, state.element_index);
+  EXPECT_EQ(5U, state.bytes_remaining);
+  EXPECT_EQ(1U, buffer1.get_size());
+  ASSERT_EQ(31U, field.get_length());
+
+  // Buffer 2: the straddling element whole and the three after it.
+  EmbeddedProto::ReadBufferFixedSize<64> buffer2({0xAC, 0x02, 33U, 34U, 35U});
+  EXPECT_EQ(EmbeddedProto::Error::NO_ERRORS, field.deserialize_partial_as_field(buffer2, state));
+  EXPECT_EQ(EmbeddedProto::FieldProcessingPhase::COMPLETE, state.phase);
+  expect_window_test_values(field);
+}
+#endif // PARTIAL_SERIALIZATION_ENABLED
+
 #ifdef PARTIAL_SERIALIZATION_ENABLED
 // Partial (chunked) packed serialization must batch per element and resume at
 // the correct element on BUFFER_FULL. Using 4-byte chunks forces every fixed32

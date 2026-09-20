@@ -28,6 +28,7 @@
 
 #include <EmbeddedProto/WireFormatter.h>
 #include <ReadBufferMock.h>
+#include <EmbeddedProto/ReadBufferFixedSize.h>
 #include <WriteBufferMock.h>
 
 using ::testing::_;
@@ -60,14 +61,9 @@ TEST(EmptyMessage, serialize)
 
 TEST(EmptyMessage, deserialize)
 {
-  Mocks::ReadBufferMock buffer;
-  InSequence s;
-
   // Some actual data we try to use to deserialize an empty message.
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x08), Return(true)));
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x01), Return(true)));
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
-  
+  ::EmbeddedProto::ReadBufferFixedSize<2> buffer({0x08, 0x01});
+
   empty_message empty;
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, empty.deserialize(buffer));
 }

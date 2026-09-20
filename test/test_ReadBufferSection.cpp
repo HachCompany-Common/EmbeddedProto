@@ -61,7 +61,7 @@ TEST(ReadBufferSection, peek)
 {
   Mocks::ReadBufferMock read_buffer_mock;
   EXPECT_CALL(read_buffer_mock, get_size()).WillRepeatedly(Return(1));
-  EXPECT_CALL(read_buffer_mock, peek(_)).WillOnce(DoAll(SetArgReferee<0>(1), Return(true)));
+  EXPECT_CALL(read_buffer_mock, peek(::testing::An<uint8_t&>())).WillOnce(DoAll(SetArgReferee<0>(1), Return(true)));
 
   EmbeddedProto::ReadBufferSection read_buffer_section(read_buffer_mock, 1);
   
@@ -143,12 +143,12 @@ TEST(ReadBufferSection, peek_block)
   // A block inside the section is peeked from the parent buffer, which keeps the
   // bytes, so the section size does not change. A block beyond the section is
   // refused without touching the parent.
+  const uint8_t src[3] = { 1, 2, 3 };
   Mocks::ReadBufferMock read_buffer_mock;
   EXPECT_CALL(read_buffer_mock, get_size()).WillRepeatedly(Return(8));
-  for(uint32_t i = 0; i < 3; ++i)
-  {
-    EXPECT_CALL(read_buffer_mock, peek(i, _)).WillOnce(DoAll(SetArgReferee<1>(static_cast<uint8_t>(i + 1)), Return(true)));
-  }
+  EXPECT_CALL(read_buffer_mock, peek(_, _)).Times(0);
+  EXPECT_CALL(read_buffer_mock, peek(Mocks::ViewOfSize(3U))).Times(1).WillOnce(
+      [&](const ::EmbeddedProto::bytes_view& dst){ memcpy(dst.data, src, dst.size); return true; });
 
   EmbeddedProto::ReadBufferSection read_buffer_section(read_buffer_mock, 3);
 

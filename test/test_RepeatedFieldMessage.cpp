@@ -351,13 +351,10 @@ TEST(RepeatedFieldMessage, serialize_fault_buffer_full)
 
 TEST(RepeatedFieldMessage, deserialize_empty_array) 
 {
-  InSequence s;
   repeated_fields<Y_SIZE> msg;
 
-  Mocks::ReadBufferMock buffer;
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x12), Return(true))); // Tag of y
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(0x00), Return(true)));// Size of y = 0
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
+  // Tag of y followed by size of y = 0.
+  ::EmbeddedProto::ReadBufferFixedSize<2> buffer({0x12, 0x00});
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -459,24 +456,11 @@ TEST(RepeatedFieldMessage, serialize_partial_two_packed_fields)
 
 TEST(RepeatedFieldMessage, deserialize_one) 
 {
-  InSequence s;
-
   repeated_fields<Y_SIZE> msg;
-  Mocks::ReadBufferMock buffer;
 
-  static constexpr uint32_t SIZE = 9;
-
-  ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
-
-  std::array<uint8_t, SIZE> referee = { 0x08, 0x01, // x
-                                        0x12, 0x03, 0x01, 0x01, 0x01, // y
-                                        0x18, 0x01}; // z 
-
-  for(auto r: referee) 
-  {
-    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<9> buffer({ 0x08, 0x01, // x
+                                                   0x12, 0x03, 0x01, 0x01, 0x01, // y
+                                                   0x18, 0x01}); // z
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -716,24 +700,11 @@ TEST(RepeatedFieldMessage, deserialize_empty_packed_repeated)
 
 TEST(RepeatedFieldMessage, deserialize_max)
 {
-  InSequence s;
-
   repeated_fields<Y_SIZE> msg;
-  Mocks::ReadBufferMock buffer;
 
-  static constexpr uint32_t SIZE = 29;
-
-  ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
-
-  std::array<uint8_t, SIZE> referee = { 0x08, 0xff, 0xff, 0xff, 0xff, 0x0f,  // x
-                                        0x12, 0x0f, 0xff, 0xff, 0xff, 0xff, 0x0f, 0xff, 0xff, 0xff, 0xff, 0x0f, 0xff, 0xff, 0xff, 0xff, 0x0f, // y
-                                        0x18, 0xff, 0xff, 0xff, 0xff, 0x0f}; // z
-
-  for(auto r: referee) 
-  {
-    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<29> buffer({ 0x08, 0xff, 0xff, 0xff, 0xff, 0x0f,  // x
+                                                    0x12, 0x0f, 0xff, 0xff, 0xff, 0xff, 0x0f, 0xff, 0xff, 0xff, 0xff, 0x0f, 0xff, 0xff, 0xff, 0xff, 0x0f, // y
+                                                    0x18, 0xff, 0xff, 0xff, 0xff, 0x0f}); // z
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.deserialize(buffer));
 
@@ -810,22 +781,9 @@ TEST(RepeatedFieldMessage, serialize_repeated_enum)
 
 TEST(RepeatedFieldMessage, deserialize_repeated_enum)
 {
-  InSequence s;
-
   repeated_enum<Y_SIZE> enum_msg;
-  Mocks::ReadBufferMock buffer;
 
-  static constexpr uint32_t SIZE = 5;
-
-  ON_CALL(buffer, get_size()).WillByDefault(Return(SIZE));
-
-  std::array<uint8_t, SIZE> referee = { 0x0a, 0x03, 0x00, 0x01, 0x02}; 
-
-  for(auto r: referee) 
-  {
-    EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(DoAll(SetArgReferee<1>(r), Return(true)));
-  }
-  EXPECT_CALL(buffer, peek(_, _)).Times(1).WillOnce(Return(false));
+  ::EmbeddedProto::ReadBufferFixedSize<5> buffer({ 0x0a, 0x03, 0x00, 0x01, 0x02});
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, enum_msg.deserialize(buffer));
   
