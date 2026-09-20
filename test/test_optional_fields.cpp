@@ -249,7 +249,7 @@ TEST(OptionalFields, cleared_serialization)
   Mocks::WriteBufferMock buffer;
 
   // No data is expected to be pushed into the buffer.
-  EXPECT_CALL(buffer, push(_)).Times(0).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(0).WillOnce(Return(true));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
 }

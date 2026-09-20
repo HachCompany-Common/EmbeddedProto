@@ -212,7 +212,7 @@ TEST(FieldString, serialize)
   // get_available_size() is called after writing tag and size
   EXPECT_CALL(buffer, get_available_size()).Times(1).WillOnce(Return(17));
 
-  EXPECT_CALL(buffer, push(_, 7)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(Mocks::ConstViewOfSize(7))).Times(1).WillOnce(Return(true));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
   EXPECT_EQ(10, msg.get_txt().get_max_length());
@@ -410,7 +410,7 @@ TEST(FieldString, oneof_serialize)
   EXPECT_CALL(buffer, get_available_size()).Times(1).WillRepeatedly(Return(99));
 
   // The actual data but it does not matter what as long as there are seven characters.
-  EXPECT_CALL(buffer, push(_, 7)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(Mocks::ConstViewOfSize(7))).Times(1).WillOnce(Return(true));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
   EXPECT_EQ(10, msg.get_txt().get_max_length());
@@ -611,7 +611,7 @@ TEST(FieldBytes, serialize)
   // get_available_size() is called after writing tag and size
   EXPECT_CALL(buffer, get_available_size()).Times(1).WillOnce(Return(17));
 
-  EXPECT_CALL(buffer, push(_, 4)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(Mocks::ConstViewOfSize(4))).Times(1).WillOnce(Return(true));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
   EXPECT_EQ(10, msg.get_b().get_max_length());
@@ -748,7 +748,7 @@ TEST(FieldBytes, oneof_serialize)
   EXPECT_CALL(buffer, get_available_size()).Times(1).WillRepeatedly(Return(17));
 
   // The actual data but it does not matter what as long as there are four bytes.
-  EXPECT_CALL(buffer, push(_, 4)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(Mocks::ConstViewOfSize(4))).Times(1).WillOnce(Return(true));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
   EXPECT_EQ(10, msg.get_txt().get_max_length());
@@ -859,7 +859,7 @@ TEST(RepeatedStringBytes, serialize)
 
   // The string is pushed as an array, we do not know the pointer value so use _, but we do know
   // the size.
-  EXPECT_CALL(buffer, push(_, 9)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(Mocks::ConstViewOfSize(9))).Times(1).WillOnce(Return(true));
   
 
   // The empty string
@@ -876,7 +876,7 @@ TEST(RepeatedStringBytes, serialize)
   // get_available_size() is called after writing tag and size for last string
   EXPECT_CALL(buffer, get_available_size()).Times(1).WillOnce(Return(9));
 
-  EXPECT_CALL(buffer, push(_, 9)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(Mocks::ConstViewOfSize(9))).Times(1).WillOnce(Return(true));
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
 }

@@ -211,8 +211,8 @@ TEST(RepeatedFieldPacked, full_serialize_fixed32_is_one_whole_block_push)
 
   Mocks::WriteBufferMock buffer;
   // Whole 4 * 4 = 16 byte payload in a single array push, and never a per-byte push.
-  EXPECT_CALL(buffer, push(_)).Times(0);
-  EXPECT_CALL(buffer, push(_, 16U)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(0);
+  EXPECT_CALL(buffer, push(Mocks::ConstViewOfSize(16U))).Times(1).WillOnce(Return(true));
 
   EXPECT_EQ(EmbeddedProto::Error::NO_ERRORS, field.serialize(buffer));
 }
@@ -225,8 +225,8 @@ TEST(RepeatedFieldPacked, full_serialize_fixed64_is_one_whole_block_push)
   field.add(0xAABBCCDDEEFF0011ULL);
 
   Mocks::WriteBufferMock buffer;
-  EXPECT_CALL(buffer, push(_)).Times(0);
-  EXPECT_CALL(buffer, push(_, 24U)).Times(1).WillOnce(Return(true));
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(0);
+  EXPECT_CALL(buffer, push(Mocks::ConstViewOfSize(24U))).Times(1).WillOnce(Return(true));
 
   EXPECT_EQ(EmbeddedProto::Error::NO_ERRORS, field.serialize(buffer));
 }
@@ -558,8 +558,8 @@ TEST(RepeatedFieldZeroLength, serialize_pushes_nothing)
   ::EmbeddedProto::RepeatedFieldFixedSize<::EmbeddedProto::uint32, 0> varint;
 
   Mocks::WriteBufferMock buffer;
-  EXPECT_CALL(buffer, push(_)).Times(0);
-  EXPECT_CALL(buffer, push(_, _)).Times(0);
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(0);
+  EXPECT_CALL(buffer, push(Mocks::AnyConstView())).Times(0);
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, fixed.serialize(buffer));
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, varint.serialize(buffer));

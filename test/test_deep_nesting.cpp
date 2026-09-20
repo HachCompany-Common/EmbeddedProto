@@ -54,10 +54,10 @@ class CountingSizeCalculator : public ::EmbeddedProto::MessageSizeCalculator
       return ::EmbeddedProto::MessageSizeCalculator::push(byte);
     }
 
-    bool push(const uint8_t* bytes, const uint32_t length) override
+    bool push(const ::EmbeddedProto::const_bytes_view& bytes) override
     {
-      push_count += length;
-      return ::EmbeddedProto::MessageSizeCalculator::push(bytes, length);
+      push_count += bytes.size;
+      return ::EmbeddedProto::MessageSizeCalculator::push(bytes);
     }
 };
 

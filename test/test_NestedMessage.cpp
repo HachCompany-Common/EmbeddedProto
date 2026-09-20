@@ -76,8 +76,8 @@ TEST(NestedMessage, serialize_zero)
 
   ::demo::space::message_b<SIZE_MSG_A> msg;
   Mocks::WriteBufferMock buffer;
-  EXPECT_CALL(buffer, push(_)).Times(0);
-  EXPECT_CALL(buffer, push(_,_)).Times(0);
+  EXPECT_CALL(buffer, push(::testing::An<uint8_t>())).Times(0);
+  EXPECT_CALL(buffer, push(Mocks::AnyConstView())).Times(0);
 
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
 

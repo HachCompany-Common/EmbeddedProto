@@ -75,16 +75,19 @@ namespace EmbeddedProto
         return return_value;
       }
   
-      //! \see ::EmbeddedProto::WriteBufferInterface::push()
-      bool push(const uint8_t* bytes, const uint32_t length) override
+      //! Keep the pointer and length form of push() reachable next to the override below.
+      using WriteBufferInterface::push;
+
+      //! \see ::EmbeddedProto::WriteBufferInterface::push(const const_bytes_view&)
+      bool push(const const_bytes_view& bytes) override
       {
         // Use >= so a block that exactly fills the remaining space still fits,
         // matching the single-byte push() which allows filling up to BUFFER_SIZE.
-        bool return_value = BUFFER_SIZE >= (write_index_ + length);
+        bool return_value = BUFFER_SIZE >= (write_index_ + bytes.size);
         if(return_value)
         {
-          memcpy(data_.data() + write_index_, bytes, length);
-          write_index_ += length;
+          memcpy(data_.data() + write_index_, bytes.data, bytes.size);
+          write_index_ += bytes.size;
         }
         return return_value;
       }
