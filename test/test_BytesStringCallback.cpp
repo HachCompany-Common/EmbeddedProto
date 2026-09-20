@@ -172,7 +172,7 @@ TEST(BytesStringCallback, serialize_frames_like_resident_field_in_windows)
 
   ::EmbeddedProto::FieldBytes<8> resident;
   const uint8_t data[] = {1U, 2U, 3U, 4U, 5U};
-  (void)resident.set(data, 5U);
+  (void)resident.set(::EmbeddedProto::const_bytes_view{data, 5U});
   ::EmbeddedProto::WriteBufferFixedSize<16> expected;
   ASSERT_EQ(Error::NO_ERRORS, resident.serialize_len(field_number, resident.get_length(), expected, true));
 
@@ -436,7 +436,7 @@ TEST(BytesStringCallback, serialize_partial_resumes_without_double_pull)
 
   ::EmbeddedProto::FieldBytes<8> resident;
   const uint8_t data[] = {1U, 2U, 3U, 4U, 5U};
-  (void)resident.set(data, 5U);
+  (void)resident.set(::EmbeddedProto::const_bytes_view{data, 5U});
   ::EmbeddedProto::WriteBufferFixedSize<16> expected;
   ASSERT_EQ(Error::NO_ERRORS, resident.serialize_len(field_number, resident.get_length(), expected, true));
 

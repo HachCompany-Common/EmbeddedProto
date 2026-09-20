@@ -279,12 +279,14 @@ namespace EmbeddedProto
       /*!
           Pointer and count form of SerializeFixedArrayNoTag(const array_view<const VAR_TYPE>&, WriteBufferInterface&).
 
+          \deprecated Use the array_view overload, a view keeps the pointer and its bound together.
           \param[in] data   Pointer to the first value.
           \param[in] count  The number of values to serialize.
           \param[in] buffer The buffer to write to.
           \return NO_ERRORS on success, BUFFER_FULL when the buffer ran out of space.
       */
       template<class VAR_TYPE>
+      [[deprecated("use the array_view overload SerializeFixedArrayNoTag(const array_view<const VAR_TYPE>&, WriteBufferInterface&)")]]
       static Error SerializeFixedArrayNoTag(const VAR_TYPE* data, const uint32_t count,
                                             WriteBufferInterface& buffer)
       {
@@ -644,12 +646,14 @@ namespace EmbeddedProto
       /*!
           Pointer and count form of DeserializeFixedArrayNoTag(const array_view<VAR_TYPE>&, ReadBufferInterface&).
 
+          \deprecated Use the array_view overload, a view keeps the pointer and its bound together.
           \param[out] dest  Pointer to the first value to fill.
           \param[in] count  The number of values to deserialize.
           \param[in] buffer The buffer to read from.
           \return NO_ERRORS on success, END_OF_BUFFER when too few bytes are available.
       */
       template<class VAR_TYPE>
+      [[deprecated("use the array_view overload DeserializeFixedArrayNoTag(const array_view<VAR_TYPE>&, ReadBufferInterface&)")]]
       static Error DeserializeFixedArrayNoTag(VAR_TYPE* dest, const uint32_t count,
                                               ReadBufferInterface& buffer)
       {

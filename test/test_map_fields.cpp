@@ -214,7 +214,7 @@ TEST(MapFields, every_value_kind_is_accessible)
 
   ::EmbeddedProto::FieldBytes<4> blob;
   const std::array<uint8_t, 3> raw = {1U, 2U, 3U};
-  blob.set(raw.data(), raw.size());
+  blob.set(::EmbeddedProto::const_bytes_view{raw.data(), static_cast<uint32_t>(raw.size())});
   EXPECT_EQ(Error::NO_ERRORS, msg.set_flags(true, blob));
   ::EmbeddedProto::FieldBytes<4> blob_read;
   EXPECT_EQ(Error::NO_ERRORS, msg.get_flags(true, blob_read));
@@ -240,7 +240,7 @@ TEST(MapFields, serialized_bytes_match_a_protoc_peer)
   msg.set_points(99, point);
   ::EmbeddedProto::FieldBytes<4> blob;
   const std::array<uint8_t, 3> raw = {1U, 2U, 3U};
-  blob.set(raw.data(), raw.size());
+  blob.set(::EmbeddedProto::const_bytes_view{raw.data(), static_cast<uint32_t>(raw.size())});
   msg.set_flags(true, blob);
   msg.set_other(5);
 

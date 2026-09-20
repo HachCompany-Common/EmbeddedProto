@@ -97,10 +97,13 @@ namespace EmbeddedProto
 
       //! Push an array of bytes into the buffer, pointer and length form of push(const const_bytes_view&).
       /*!
+          \deprecated Use the array_view overload push(const const_bytes_view&), a view keeps
+                      the pointer and its bound together.
           \param[in] bytes Pointer to the array of bytes.
           \param[in] length The number of bytes in the array.
           \return True when there was space to add all the bytes.
       */
+      [[deprecated("use the array_view overload push(const const_bytes_view&)")]]
       virtual bool push(const uint8_t* bytes, const uint32_t length)
       {
         return push(const_bytes_view{bytes, length});

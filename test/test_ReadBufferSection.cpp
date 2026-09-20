@@ -177,7 +177,7 @@ TEST(ReadBufferSection, pop_block)
   EmbeddedProto::ReadBufferSection read_buffer_section(read_buffer_mock, 5);
 
   uint8_t dest[3] = { 0, 0, 0 };
-  EXPECT_TRUE(read_buffer_section.pop(dest, 3));
+  EXPECT_TRUE(read_buffer_section.pop(::EmbeddedProto::bytes_view{dest, 3}));
   EXPECT_EQ(1, dest[0]);
   EXPECT_EQ(2, dest[1]);
   EXPECT_EQ(3, dest[2]);
@@ -196,7 +196,7 @@ TEST(ReadBufferSection, pop_block_respects_boundary)
   EmbeddedProto::ReadBufferSection read_buffer_section(read_buffer_mock, 3);
 
   uint8_t dest[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
-  EXPECT_FALSE(read_buffer_section.pop(dest, 4));
+  EXPECT_FALSE(read_buffer_section.pop(::EmbeddedProto::bytes_view{dest, 4}));
   EXPECT_EQ(0xFF, dest[0]); // Untouched on a boundary-exceeding read.
   EXPECT_EQ(3, read_buffer_section.get_size());
 }

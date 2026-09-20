@@ -120,6 +120,24 @@ TEST(FieldString, get_set)
   ASSERT_STREQ("1234567890", msg.get_txt().get_const());
 }
 
+// The deprecated pointer and length form forwards to the view overload.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+TEST(FieldString, set_pointer_and_length_forwards_to_the_view)
+{
+  ::EmbeddedProto::FieldString<3> str;
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, str.set("abc", 3));
+  EXPECT_EQ(3U, str.get_length());
+  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, str.set("abcd", 4));
+
+  ::EmbeddedProto::FieldBytes<3> bytes;
+  const uint8_t data[4] = {1, 2, 3, 4};
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, bytes.set(data, 3));
+  EXPECT_EQ(3U, bytes.get_length());
+  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, bytes.set(data, 4));
+}
+#pragma GCC diagnostic pop
+
 TEST(FieldString, set_smaller)
 {
   text<10> msgA;
@@ -514,7 +532,7 @@ TEST(FieldBytes, set_get)
   // Try to set more bytes compared to what will fit.
   uint8_t big_array[11] = {0};
   big_array[10] = 11;
-  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, msg.mutable_b().set(big_array, 11));
+  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, msg.mutable_b().set(::EmbeddedProto::const_bytes_view{big_array, 11}));
 
   // Expect an error when setting more bytes in a smaller message.
   raw_bytes<5> msgB;
@@ -566,7 +584,7 @@ TEST(FieldBytes, assign_msg)
   raw_bytes<10> msgA;
   raw_bytes<10> msgB;
   const std::array<uint8_t, 10> data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-  msgA.mutable_b().set(data.data(), 10);
+  msgA.mutable_b().set(::EmbeddedProto::const_bytes_view{data.data(), 10});
   msgB = msgA;
 
   for(uint8_t i = 0; i < msgB.mutable_b().get_max_length(); ++i) {
@@ -581,13 +599,13 @@ TEST(FieldBytes, clear)
   const std::array<uint8_t, 2> array = {1 ,2};
 
   // Clear the field specific.
-  msg.mutable_b().set(array.data(), 2);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{array.data(), 2});
   EXPECT_EQ(2, msg.get_b().get_length());
   msg.clear_b();
   EXPECT_EQ(0, msg.get_b().get_length());
 
   // Clear the whole message.
-  msg.mutable_b().set(array.data(), 2);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{array.data(), 2});
   msg.clear();
   EXPECT_EQ(0, msg.get_b().get_length());
 }
@@ -600,7 +618,7 @@ TEST(FieldBytes, serialize)
   Mocks::WriteBufferMock buffer;
 
   std::array<uint8_t, 4> bytes = {1u, 2u, 3u, 0u};
-  msg.mutable_b().set(bytes.data(), 4);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{bytes.data(), 4});
 
   std::array<uint8_t, 2> expected = {0x0a, 0x04};
   for(auto e : expected) 
@@ -686,7 +704,7 @@ TEST(FieldBytes, oneof_set_get)
 
   // Switch to the array
   std::array<uint8_t, 5> array = {1, 2, 3, 4, 5};
-  msg.mutable_b().set(array.data(), 5);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{array.data(), 5});
 
   id = string_or_bytes<3, 3, 10, 10>::FieldNumber::B;
   EXPECT_EQ(id, msg.get_which_s_or_b());
@@ -703,13 +721,13 @@ TEST(FieldBytes, oneof_clear)
   const std::array<uint8_t, 2> array = {1 ,2};
 
   // Clear the field specific.
-  msg.mutable_b().set(array.data(), 2);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{array.data(), 2});
   EXPECT_EQ(2, msg.get_b().get_length());
   msg.clear_b();
   EXPECT_EQ(0, msg.get_b().get_length());
 
   // Clear the whole message.
-  msg.mutable_b().set(array.data(), 2);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{array.data(), 2});
   msg.clear();
   EXPECT_EQ(0, msg.get_b().get_length());
 }
@@ -735,7 +753,7 @@ TEST(FieldBytes, oneof_serialize)
   Mocks::WriteBufferMock buffer;
 
   std::array<uint8_t, 4> bytes = {1u, 2u, 3u, 0u};
-  msg.mutable_b().set(bytes.data(), 4);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{bytes.data(), 4});
 
   // The tag and size
   std::array<uint8_t, 2> expected = {0x12, 0x04};
@@ -1063,7 +1081,7 @@ TEST(RepeatedStringBytes, to_string)
   msg.mutable_nested_text().mutable_txt() = "A.B";
 
   const std::array<uint8_t, 3> b = {1, 2, 3};
-  msg.mutable_nested_bytes().mutable_b().set(b.data(), 3); 
+  msg.mutable_nested_bytes().mutable_b().set(::EmbeddedProto::const_bytes_view{b.data(), 3}); 
 
   constexpr uint32_t N = 2048;
   char str[N];
@@ -1110,7 +1128,7 @@ TEST(RepeatedStringBytes, to_string_buffer_overrun)
   msg.mutable_nested_text().mutable_txt() = "A.B";
 
   const std::array<uint8_t, 3> b = {1, 2, 3};
-  msg.mutable_nested_bytes().mutable_b().set(b.data(), 3); 
+  msg.mutable_nested_bytes().mutable_b().set(::EmbeddedProto::const_bytes_view{b.data(), 3}); 
 
   constexpr uint32_t N = 100;
   char str[N];
@@ -1153,7 +1171,7 @@ TEST(RepeatedBytesWithLengths, test_both_lengths) {
 
   // Each bytes field should have a max length of 10
   uint8_t data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  msg.mutable_array_of_bytes(0).set(data, 10);
+  msg.mutable_array_of_bytes(0).set(::EmbeddedProto::const_bytes_view{data, 10});
   ASSERT_EQ(10, msg.array_of_bytes(0).get_max_length());
   for (int i = 0; i < 10; ++i) {
     ASSERT_EQ(i, msg.array_of_bytes(0)[i]);
@@ -1161,12 +1179,12 @@ TEST(RepeatedBytesWithLengths, test_both_lengths) {
 
   // Try to set more bytes than the max length - should be truncated
   uint8_t big_data[15] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
-  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, msg.mutable_array_of_bytes(1).set(big_data, 15));
+  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, msg.mutable_array_of_bytes(1).set(::EmbeddedProto::const_bytes_view{big_data, 15}));
   ASSERT_EQ(0, msg.array_of_bytes(1).get_length());
 
   // Try to set data within the max length - should work
   uint8_t small_data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.mutable_array_of_bytes(1).set(small_data, 10));
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.mutable_array_of_bytes(1).set(::EmbeddedProto::const_bytes_view{small_data, 10}));
   ASSERT_EQ(10, msg.array_of_bytes(1).get_length());
   for (int i = 0; i < 10; ++i) {
     ASSERT_EQ(i, msg.array_of_bytes(1)[i]);
@@ -1174,7 +1192,7 @@ TEST(RepeatedBytesWithLengths, test_both_lengths) {
 
   // Clear the array first before setting data
   msg.clear_array_of_bytes();
-  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.mutable_array_of_bytes(1).set(small_data, 10));
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.mutable_array_of_bytes(1).set(::EmbeddedProto::const_bytes_view{small_data, 10}));
   ASSERT_EQ(10, msg.array_of_bytes(1).get_length());
   for (int i = 0; i < 10; ++i) {
     ASSERT_EQ(i, msg.array_of_bytes(1)[i]);
@@ -1209,7 +1227,7 @@ TEST(RepeatedBytesMaxOnly, test_max_only) {
 
   // Each bytes field should have a template parameter for length
   uint8_t data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  msg.mutable_array_of_bytes(0).set(data, 10);
+  msg.mutable_array_of_bytes(0).set(::EmbeddedProto::const_bytes_view{data, 10});
   for (int i = 0; i < 10; ++i) {
     ASSERT_EQ(i, msg.array_of_bytes(0)[i]);
   }
@@ -1239,7 +1257,7 @@ TEST(RepeatedBytesNestedOnly, test_nested_only) {
 
   // Each bytes field should have a max length of 10
   uint8_t data[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  msg.mutable_array_of_bytes(0).set(data, 10);
+  msg.mutable_array_of_bytes(0).set(::EmbeddedProto::const_bytes_view{data, 10});
   for (int i = 0; i < 10; ++i) {
     ASSERT_EQ(i, msg.array_of_bytes(0)[i]);
   }
@@ -1569,7 +1587,7 @@ TEST(FieldBytes, PartialSerialize_Bytes_SufficientBuffer)
   // Test 15.3.12: Verify partial serialization of bytes field with sufficient buffer
   raw_bytes<10> msg;
   std::array<uint8_t, 4> data = {0x01, 0x02, 0x03, 0x00};
-  msg.mutable_b().set(data.data(), 4);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{data.data(), 4});
 
   ::EmbeddedProto::WriteBufferFixedSize<10> buffer;
   raw_bytes<10>::StateStack state;
@@ -1614,7 +1632,7 @@ TEST(FieldBytes, PartialSerialize_Bytes_SplitInData)
   // Test 15.3.14: Verify bytes data can span multiple buffers
   raw_bytes<10> msg;
   std::array<uint8_t, 4> data = {0x01, 0x02, 0x03, 0x00};
-  msg.mutable_b().set(data.data(), 4);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{data.data(), 4});
 
   // Buffer A: fits tag + size + 2 data bytes
   ::EmbeddedProto::WriteBufferFixedSize<4> bufferA;
@@ -1655,7 +1673,7 @@ TEST(FieldBytes, PartialSerialize_Bytes_BufferTooSmallForTagSize)
   // Test 15.3.15: Verify rollback when tag+size cannot fit
   raw_bytes<10> msg;
   std::array<uint8_t, 4> data = {0x01, 0x02, 0x03, 0x00};
-  msg.mutable_b().set(data.data(), 4);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{data.data(), 4});
 
   // Buffer A: fits tag only (1 byte), not size
   ::EmbeddedProto::WriteBufferFixedSize<1> bufferA;
@@ -1679,7 +1697,7 @@ TEST(FieldBytes, PartialSerialize_Bytes_WithZeroBytes)
   // Test 15.3.26: Verify bytes field containing zero values serializes correctly
   raw_bytes<10> msg;
   std::array<uint8_t, 3> data = {0x00, 0x00, 0x00};
-  msg.mutable_b().set(data.data(), 3);
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{data.data(), 3});
 
   ::EmbeddedProto::WriteBufferFixedSize<10> buffer;
   raw_bytes<10>::StateStack state;
@@ -1918,7 +1936,7 @@ TEST(FieldString, PartialSerialize_Oneof_Bytes_SufficientBuffer)
   // Test 15.3.17: Verify oneof bytes field serialization
   string_or_bytes<3, 3, 10, 10> msg;
   std::array<uint8_t, 4> data = {0x01, 0x02, 0x03, 0x00};
-  msg.mutable_b().set(data.data(), 4);  // oneof selected
+  msg.mutable_b().set(::EmbeddedProto::const_bytes_view{data.data(), 4});  // oneof selected
 
   ::EmbeddedProto::WriteBufferFixedSize<20> buffer;
   string_or_bytes<3, 3, 10, 10>::StateStack state;
@@ -2201,15 +2219,15 @@ TEST(RepeatedStringBytes, PartialSerialize_RepeatedBytes_ThreeArrays_LargeBuffer
   
   ::EmbeddedProto::FieldBytes<15> bytes;
   uint8_t data1[2] = {0x01, 0x02};
-  bytes.set(data1, 2);
+  bytes.set(::EmbeddedProto::const_bytes_view{data1, 2});
   msg.add_array_of_bytes(bytes);
   
   uint8_t data2[3] = {0x03, 0x04, 0x05};
-  bytes.set(data2, 3);
+  bytes.set(::EmbeddedProto::const_bytes_view{data2, 3});
   msg.add_array_of_bytes(bytes);
   
   uint8_t data3[1] = {0x06};
-  bytes.set(data3, 1);
+  bytes.set(::EmbeddedProto::const_bytes_view{data3, 1});
   msg.add_array_of_bytes(bytes);
 
   ::EmbeddedProto::WriteBufferFixedSize<20> buffer;
@@ -2245,9 +2263,9 @@ TEST(FieldStringBytes, zero_length_holds_nothing)
   EXPECT_EQ(0U, str.get_max_length());
 
   const uint8_t one = 1;
-  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, bytes.set(&one, 1));
-  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, bytes.set(&one, 0));
-  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, str.set("abc", 3));
+  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, bytes.set(::EmbeddedProto::const_bytes_view{&one, 1}));
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, bytes.set(::EmbeddedProto::const_bytes_view{&one, 0}));
+  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, str.set(::EmbeddedProto::const_string_view{"abc", 3}));
 
   bytes.get(3) = 9;
   str.get(3) = 'x';

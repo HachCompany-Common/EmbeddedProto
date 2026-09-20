@@ -76,7 +76,7 @@ TEST(AnyTypeFields, serialize)
   envelope.set_sequence(1);
   envelope.mutable_details().mutable_type_url() = "type.googleapis.com/any_test.Sensor";
   ASSERT_EQ(::EmbeddedProto::Error::NO_ERRORS,
-            envelope.mutable_details().mutable_value().set(payload.get_data(), payload.get_size()));
+            envelope.mutable_details().mutable_value().set(::EmbeddedProto::const_bytes_view{payload.get_data(), payload.get_size()}));
 
   ::EmbeddedProto::WriteBufferFixedSize<64> buffer;
   ASSERT_EQ(::EmbeddedProto::Error::NO_ERRORS, envelope.serialize(buffer));

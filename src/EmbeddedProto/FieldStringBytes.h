@@ -165,10 +165,13 @@ namespace EmbeddedProto
 
         //! Assign data in the given array to this object, pointer and length form of set(const array_view<const DATA_TYPE>&).
         /*!
+            \deprecated Use the array_view overload set(const array_view<const DATA_TYPE>&), a
+                        view keeps the pointer and its bound together.
             \param[in] data A pointer to an array with data.
             \param[in] length The number of bytes/chars in the data array.
             \return Will return ARRAY_FULL when length exceeds the number of bytes/chars in this object.
         */
+        [[deprecated("use the array_view overload set(const array_view<const DATA_TYPE>&)")]]
         Error set(const DATA_TYPE* data, const uint32_t length)
         {
           return set(array_view<const DATA_TYPE>{data, length});

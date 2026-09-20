@@ -53,7 +53,7 @@ TEST(MessageSizeCalculator, push_n)
 
   static constexpr uint8_t SIZE = 3;
   uint8_t bytes[SIZE] = {1, 2, 3};
-  EXPECT_TRUE(msc.push(bytes, SIZE));
+  EXPECT_TRUE(msc.push(::EmbeddedProto::const_bytes_view{bytes, SIZE}));
   EXPECT_EQ(3, msc.get_size());
 }
 

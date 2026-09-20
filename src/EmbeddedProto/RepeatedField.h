@@ -180,10 +180,13 @@ namespace EmbeddedProto
 
       //! Copy an array into this object, pointer and length form of set_data(const array_view<const DATA_TYPE>&).
       /*!
+        \deprecated Use the array_view overload set_data(const array_view<const DATA_TYPE>&), a
+                    view keeps the pointer and its bound together.
         \param[in] data A pointer the array to copy from.
         \param[in] length The number of value of DATA_TYPE in the array.
         \return Error::NO_ERRORS when every was successful. Error::ARRAY_FULL when there is no space left.
       */
+      [[deprecated("use the array_view overload set_data(const array_view<const DATA_TYPE>&)")]]
       virtual Error set_data(const DATA_TYPE* data, const uint32_t length)
       {
         return set_data(array_view<const DATA_TYPE>{data, length});

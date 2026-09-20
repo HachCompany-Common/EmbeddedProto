@@ -171,7 +171,7 @@ namespace test_EmbeddedAMS_ReadBufferFixedSize
 
     // Pop the first three bytes in one call.
     std::array<uint8_t, 3> dest = { 0, 0, 0 };
-    EXPECT_TRUE(buffer.pop(dest.data(), 3));
+    EXPECT_TRUE(buffer.pop(::EmbeddedProto::bytes_view{dest.data(), 3}));
     EXPECT_EQ(10, dest[0]);
     EXPECT_EQ(11, dest[1]);
     EXPECT_EQ(12, dest[2]);
@@ -179,16 +179,34 @@ namespace test_EmbeddedAMS_ReadBufferFixedSize
 
     // Asking for more than remains must fail and consume nothing.
     std::array<uint8_t, 3> dest2 = { 0xFF, 0xFF, 0xFF };
-    EXPECT_FALSE(buffer.pop(dest2.data(), 3));
+    EXPECT_FALSE(buffer.pop(::EmbeddedProto::bytes_view{dest2.data(), 3}));
     EXPECT_EQ(0xFF, dest2[0]); // Untouched on a short read.
     EXPECT_EQ(2, buffer.get_size());
 
     // Exactly emptying the buffer is allowed.
-    EXPECT_TRUE(buffer.pop(dest2.data(), 2));
+    EXPECT_TRUE(buffer.pop(::EmbeddedProto::bytes_view{dest2.data(), 2}));
     EXPECT_EQ(13, dest2[0]);
     EXPECT_EQ(14, dest2[1]);
     EXPECT_EQ(0, buffer.get_size());
   }
+
+  // The deprecated pointer and length form forwards to the view overload.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+  TEST(ReadBufferFixedSize, pop_pointer_and_length_forwards_to_the_view)
+  {
+    EmbeddedProto::ReadBufferFixedSize<3> buffer;
+    EXPECT_TRUE(buffer.push(10));
+    EXPECT_TRUE(buffer.push(11));
+
+    uint8_t dest[2] = {0, 0};
+    EXPECT_FALSE(buffer.pop(dest, 3));
+    EXPECT_TRUE(buffer.pop(dest, 2));
+    EXPECT_EQ(10, dest[0]);
+    EXPECT_EQ(11, dest[1]);
+    EXPECT_EQ(0, buffer.get_size());
+  }
+#pragma GCC diagnostic pop
 
   TEST(ReadBufferFixedSize, advance)
   {

@@ -146,7 +146,7 @@ TEST(RepeatedFieldFixedSize, set_data_array)
 
   EmbeddedProto::uint32 data3[] = {1, 2, 3};
 
-  auto result = x.set_data(&(data3[0]), 3U);
+  auto result = x.set_data(::EmbeddedProto::array_view<const ::EmbeddedProto::uint32>{data3, 3U});
   EXPECT_EQ(EmbeddedProto::Error::NO_ERRORS, result);  
 
   EXPECT_EQ(LENGTH*UINT32_SIZE, x.get_size());
@@ -156,9 +156,43 @@ TEST(RepeatedFieldFixedSize, set_data_array)
 
   // Check if we can add more than the limit.
   EmbeddedProto::uint32 data4[] = {1, 2, 3, 4};
-  result = x.set_data(&(data4[0]), 4U);
+  result = x.set_data(::EmbeddedProto::array_view<const ::EmbeddedProto::uint32>{data4, 4U});
   EXPECT_EQ(EmbeddedProto::Error::ARRAY_FULL, result);
 }
+
+// The deprecated pointer and length forms forward to the view overloads.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+TEST(RepeatedFieldFixedSize, set_data_pointer_and_length_forwards_to_the_view)
+{
+  EmbeddedProto::RepeatedFieldFixedSize<::EmbeddedProto::uint32, 3> x;
+  const EmbeddedProto::uint32 data[] = {1, 2, 3, 4};
+  EXPECT_EQ(EmbeddedProto::Error::NO_ERRORS, x.set_data(data, 3U));
+  EXPECT_EQ(3U, x.get_length());
+  EXPECT_EQ(3U, x.get_const(2).get());
+  EXPECT_EQ(EmbeddedProto::Error::ARRAY_FULL, x.set_data(data, 4U));
+}
+
+TEST(RepeatedFieldFixedSize, fixed_array_pointer_and_count_forwards_to_the_view)
+{
+  const uint32_t values[2] = {0x04030201U, 0x08070605U};
+  EmbeddedProto::WriteBufferFixedSize<8> write_buffer;
+  EXPECT_EQ(EmbeddedProto::Error::NO_ERRORS,
+            EmbeddedProto::WireFormatter::SerializeFixedArrayNoTag(values, 2U, write_buffer));
+  EXPECT_EQ(8U, write_buffer.get_size());
+
+  EmbeddedProto::ReadBufferFixedSize<8> read_buffer;
+  for(uint32_t i = 0; i < 8U; ++i)
+  {
+    EXPECT_TRUE(read_buffer.push(write_buffer.get_data()[i]));
+  }
+  uint32_t read_back[2] = {0, 0};
+  EXPECT_EQ(EmbeddedProto::Error::NO_ERRORS,
+            EmbeddedProto::WireFormatter::DeserializeFixedArrayNoTag(read_back, 2U, read_buffer));
+  EXPECT_EQ(values[0], read_back[0]);
+  EXPECT_EQ(values[1], read_back[1]);
+}
+#pragma GCC diagnostic pop
 
 TEST(RepeatedFieldFixedSize, set_element) 
 {
@@ -535,8 +569,8 @@ TEST(RepeatedFieldZeroLength, holds_nothing)
 
   ::EmbeddedProto::uint32 value = 7;
   EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, field.add(value));
-  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, field.set_data(&value, 1));
-  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, field.set_data(&value, 0));
+  EXPECT_EQ(::EmbeddedProto::Error::ARRAY_FULL, field.set_data(::EmbeddedProto::array_view<const ::EmbeddedProto::uint32>{&value, 1U}));
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, field.set_data(::EmbeddedProto::array_view<const ::EmbeddedProto::uint32>{&value, 0U}));
   EXPECT_EQ(::EmbeddedProto::Error::INDEX_OUT_OF_BOUND, field.get_const(0, value));
   EXPECT_EQ(::EmbeddedProto::Error::INDEX_OUT_OF_BOUND, field.erase(0));
 
