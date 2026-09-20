@@ -47,7 +47,6 @@ namespace Mocks
       MOCK_METHOD1(pop, bool(uint8_t&));
       MOCK_METHOD0(pop, uint8_t());
       MOCK_METHOD1(pop, bool(const EmbeddedProto::bytes_view&));
-      MOCK_METHOD2(pop, bool(uint8_t*, const uint32_t));
   };
 
   //! Matcher for the batched pop(bytes_view) overload, selecting a view of the given size.
