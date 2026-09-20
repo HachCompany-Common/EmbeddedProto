@@ -185,7 +185,8 @@ namespace EmbeddedProto
 
 #if EMBEDDED_PROTO_LITTLE_ENDIAN
         // The in-memory bytes already are the wire order, push them as one block.
-        result = buffer.push(reinterpret_cast<const uint8_t*>(&value), sizeof(UINT_TYPE));
+        result = buffer.push(const_bytes_view{reinterpret_cast<const uint8_t*>(&value),
+                                              static_cast<uint32_t>(sizeof(UINT_TYPE))});
 #else
         // Build the little-endian wire bytes locally and push them as one block, so the
         // write is all-or-nothing just like on a little-endian target.
@@ -194,7 +195,7 @@ namespace EmbeddedProto
         {
           bytes[i] = static_cast<uint8_t>((value >> (i * 8U)) & 0x00FFU);
         }
-        result = buffer.push(bytes.data(), static_cast<uint32_t>(bytes.size()));
+        result = buffer.push(const_bytes_view{bytes.data(), static_cast<uint32_t>(bytes.size())});
 #endif
         return result ? Error::NO_ERRORS : Error::BUFFER_FULL;
       }
@@ -234,7 +235,7 @@ namespace EmbeddedProto
           Writes `count` values, each `sizeof(VAR_TYPE)` bytes wide, little-endian
           on the wire (protobuf packed fixed32/fixed64 layout). On a little-endian
           target the whole block is copied to the buffer with a single
-          push(bytes, length) call. On a big-endian target every value is byte
+          push(const_bytes_view) call. On a big-endian target every value is byte
           swapped into a local array and pushed as one block, so the on-wire order
           stays little-endian and each value is still written all-or-nothing.
 

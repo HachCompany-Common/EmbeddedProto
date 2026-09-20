@@ -140,7 +140,7 @@ namespace EmbeddedProto
         template<uint32_t RHS_LENGTH> 
         Error set(const FieldStringBytes<RHS_LENGTH, DATA_TYPE>& rhs)
         {
-          return this->set(rhs.get_const(), rhs.get_length());
+          return this->set(array_view<const DATA_TYPE>{rhs.get_const(), rhs.get_length()});
         }
 
         //! Assign the data in the given view to this object.
@@ -205,7 +205,7 @@ namespace EmbeddedProto
           Error return_value = Error::NO_ERRORS;
           const auto* void_pointer = static_cast<const void*>(&(data_[0]));
           const auto* byte_pointer = static_cast<const uint8_t*>(void_pointer);
-          if(!buffer.push(byte_pointer, current_length_))
+          if(!buffer.push(const_bytes_view{byte_pointer, current_length_}))
           {
             return_value = Error::BUFFER_FULL;
           }
@@ -343,7 +343,7 @@ namespace EmbeddedProto
               const auto* byte_pointer = static_cast<const uint8_t*>(void_pointer);
 
               // Try to write all bytes at once first
-              if(buffer.push(byte_pointer, bytes_to_write))
+              if(buffer.push(const_bytes_view{byte_pointer, bytes_to_write}))
               {
                 state.bytes_remaining -= bytes_to_write;
                 if(0 == state.bytes_remaining)
@@ -561,7 +561,7 @@ namespace EmbeddedProto
       template<uint32_t RHS_LENGTH> 
       FieldString<MAX_LENGTH>& operator=(const FieldString<RHS_LENGTH>& rhs)
       {
-        this->set(rhs.get_const(), rhs.get_length());
+        this->set(::EmbeddedProto::const_string_view{rhs.get_const(), rhs.get_length()});
         return *this;
       }
 
@@ -722,7 +722,7 @@ namespace EmbeddedProto
       template<uint32_t RHS_LENGTH> 
       FieldBytes<MAX_LENGTH>& operator=(const FieldBytes<RHS_LENGTH>& rhs)
       {
-        this->set(rhs.get_const(), rhs.get_length());
+        this->set(::EmbeddedProto::const_bytes_view{rhs.get_const(), rhs.get_length()});
         return *this;
       }
 

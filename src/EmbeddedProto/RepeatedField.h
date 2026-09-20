@@ -462,7 +462,7 @@ namespace EmbeddedProto
     private:
       //! Serialize a single packed element with one all-or-nothing push.
       /*!
-          Every scalar element is written with a single push(bytes, length) call.
+          Every scalar element is written with a single push(const_bytes_view) call.
           Fixed-width values push their little-endian bytes directly, varint values
           (integers, bools and enums) are first encoded into a local array. This
           keeps the resumable partial path correct: when the element does not fit,
@@ -481,7 +481,7 @@ namespace EmbeddedProto
       {
         using VAR = typename internal::PackedFixedTraits<DATA_TYPE>::scalar_type;
         const VAR value = this->get_const(index).get();
-        return WireFormatter::SerializeFixedArrayNoTag(&value, 1U, buffer);
+        return WireFormatter::SerializeFixedArrayNoTag(array_view<const VAR>{&value, 1U}, buffer);
       }
 
       Error serialize_packed_element_(uint32_t index, WriteBufferInterface& buffer,
@@ -493,8 +493,8 @@ namespace EmbeddedProto
           std::array<uint8_t, WireFormatter::VARINT_MAX_N_BYTES> bytes = {0};
           const uint32_t n_bytes = WireFormatter::EncodeVarint(
                                       packed_varint_value(this->get_const(index)), bytes);
-          return_value = buffer.push(bytes.data(), n_bytes) ? Error::NO_ERRORS
-                                                            : Error::BUFFER_FULL;
+          return_value = buffer.push(const_bytes_view{bytes.data(), n_bytes}) ? Error::NO_ERRORS
+                                                                              : Error::BUFFER_FULL;
         }
         else
         {
@@ -840,7 +840,7 @@ namespace EmbeddedProto
         if constexpr(internal::PackedFixedTraits<DATA_TYPE>::is_fixed_width)
         {
           using VAR = typename internal::PackedFixedTraits<DATA_TYPE>::scalar_type;
-          return WireFormatter::DeserializeFixedArrayNoTag<VAR>(&element.get(), 1U, section);
+          return WireFormatter::DeserializeFixedArrayNoTag(array_view<VAR>{&element.get(), 1U}, section);
         }
         else
         {
