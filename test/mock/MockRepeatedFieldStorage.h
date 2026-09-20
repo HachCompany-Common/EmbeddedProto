@@ -85,16 +85,18 @@ class MockRepeatedFieldStorage final : public ::EmbeddedProto::RepeatedField<DAT
       data_[limited_index] = value;
     }
 
-    ::EmbeddedProto::Error set_data(const DATA_TYPE* data, const uint32_t length) override
+    using ::EmbeddedProto::RepeatedField<DATA_TYPE>::set_data;
+
+    ::EmbeddedProto::Error set_data(const ::EmbeddedProto::array_view<const DATA_TYPE>& data) override
     {
       ::EmbeddedProto::Error return_value = ::EmbeddedProto::Error::NO_ERRORS;
-      if(length <= MAX_LENGTH)
+      if(data.size <= MAX_LENGTH)
       {
-        for(uint32_t i = 0U; i < length; ++i)
+        for(uint32_t i = 0U; i < data.size; ++i)
         {
-          data_[i] = data[i];
+          data_[i] = data.data[i];
         }
-        current_length_ = length;
+        current_length_ = data.size;
       }
       else
       {

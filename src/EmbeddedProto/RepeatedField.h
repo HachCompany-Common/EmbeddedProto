@@ -171,13 +171,23 @@ namespace EmbeddedProto
       */
       virtual void set(uint32_t index, const DATA_TYPE& value) = 0;
 
-      //! Given a different array of known length copy that data into this object.
+      //! Given a view on a different array copy that data into this object.
+      /*!
+        \param[in] data A view on the array to copy from, data.size values of DATA_TYPE are copied.
+        \return Error::NO_ERRORS when every was successful. Error::ARRAY_FULL when there is no space left.
+      */
+      virtual Error set_data(const array_view<const DATA_TYPE>& data) = 0;
+
+      //! Copy an array into this object, pointer and length form of set_data(const array_view<const DATA_TYPE>&).
       /*!
         \param[in] data A pointer the array to copy from.
         \param[in] length The number of value of DATA_TYPE in the array.
         \return Error::NO_ERRORS when every was successful. Error::ARRAY_FULL when there is no space left.
       */
-      virtual Error set_data(const DATA_TYPE* data, const uint32_t length) = 0;
+      virtual Error set_data(const DATA_TYPE* data, const uint32_t length)
+      {
+        return set_data(array_view<const DATA_TYPE>{data, length});
+      }
 
       //! Append a value to the end of the array.
       /*!

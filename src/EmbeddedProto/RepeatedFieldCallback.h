@@ -157,11 +157,13 @@ namespace EmbeddedProto
         static_cast<void>(value);
       }
 
+      //! Keep the pointer and length form of set_data() reachable next to the override below.
+      using RepeatedField<DATA_TYPE>::set_data;
+
       //! Bulk assignment is unsupported for a streaming field.
-      Error set_data(const DATA_TYPE* data, const uint32_t length) override
+      Error set_data(const array_view<const DATA_TYPE>& data) override
       {
         static_cast<void>(data);
-        static_cast<void>(length);
         return Error::ARRAY_FULL;
       }
 

@@ -146,18 +146,19 @@ namespace EmbeddedProto
         data_[limited_index] = value;  
       }
 
-      Error set_data(const DATA_TYPE* data, const uint32_t length) override 
+      //! Keep the pointer and length form of set_data() reachable next to the override below.
+      using RepeatedField<DATA_TYPE>::set_data;
+
+      Error set_data(const array_view<const DATA_TYPE>& data) override 
       {
         Error return_value = Error::NO_ERRORS;
-        if(MAX_LENGTH >= length) 
+        if(MAX_LENGTH >= data.size) 
         {
-          const DATA_TYPE* d = data;
-          for(uint32_t i = 0; i < length; ++i) 
+          for(uint32_t i = 0; i < data.size; ++i) 
           {
-            (data_[i]) = (*d);
-            ++d;
+            data_[i] = data.data[i];
           }
-          current_length_ = length;        
+          current_length_ = data.size;        
         }
         else 
         {
