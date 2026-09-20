@@ -241,6 +241,43 @@ namespace EmbeddedProto
           This is used to batch packed repeated fixed32/sfixed32/float and
           fixed64/sfixed64/double fields into as few buffer writes as possible.
 
+          \param[in] data   A view on the values to serialize.
+          \param[in] buffer The buffer to write to.
+          \return NO_ERRORS on success, BUFFER_FULL when the buffer ran out of space.
+      */
+      template<class VAR_TYPE>
+      static Error SerializeFixedArrayNoTag(const array_view<const VAR_TYPE>& data,
+                                            WriteBufferInterface& buffer)
+      {
+        static_assert((4U == sizeof(VAR_TYPE)) || (8U == sizeof(VAR_TYPE)),
+                      "SerializeFixedArrayNoTag only supports 32 and 64 bit values.");
+
+#if EMBEDDED_PROTO_LITTLE_ENDIAN
+        // The in-memory representation already equals the little-endian wire
+        // format, so the whole block can be pushed in one call.
+        const auto* const raw = reinterpret_cast<const uint8_t*>(data.data);
+        const uint32_t n_bytes = data.size * static_cast<uint32_t>(sizeof(VAR_TYPE));
+        return buffer.push(const_bytes_view{raw, n_bytes}) ? Error::NO_ERRORS : Error::BUFFER_FULL;
+#else
+        // Big-endian fallback: every value is pushed as one little-endian block.
+        using UINT_TYPE = typename std::conditional<4U == sizeof(VAR_TYPE),
+                                                    uint32_t, uint64_t>::type;
+        Error return_value = Error::NO_ERRORS;
+        for(uint32_t i = 0; (i < data.size) && (Error::NO_ERRORS == return_value); ++i)
+        {
+          UINT_TYPE bits = 0;
+          memcpy(&bits, reinterpret_cast<const uint8_t*>(data.data) + (i * sizeof(VAR_TYPE)),
+                 sizeof(VAR_TYPE));
+          return_value = SerializeFixedNoTag(bits, buffer);
+        }
+        return return_value;
+#endif
+      }
+
+      //! Serialize a contiguous array of fixed-width scalar values, pointer and count form.
+      /*!
+          Pointer and count form of SerializeFixedArrayNoTag(const array_view<const VAR_TYPE>&, WriteBufferInterface&).
+
           \param[in] data   Pointer to the first value.
           \param[in] count  The number of values to serialize.
           \param[in] buffer The buffer to write to.
@@ -250,29 +287,7 @@ namespace EmbeddedProto
       static Error SerializeFixedArrayNoTag(const VAR_TYPE* data, const uint32_t count,
                                             WriteBufferInterface& buffer)
       {
-        static_assert((4U == sizeof(VAR_TYPE)) || (8U == sizeof(VAR_TYPE)),
-                      "SerializeFixedArrayNoTag only supports 32 and 64 bit values.");
-
-#if EMBEDDED_PROTO_LITTLE_ENDIAN
-        // The in-memory representation already equals the little-endian wire
-        // format, so the whole block can be pushed in one call.
-        const auto* const raw = reinterpret_cast<const uint8_t*>(data);
-        const uint32_t n_bytes = count * static_cast<uint32_t>(sizeof(VAR_TYPE));
-        return buffer.push(raw, n_bytes) ? Error::NO_ERRORS : Error::BUFFER_FULL;
-#else
-        // Big-endian fallback: every value is pushed as one little-endian block.
-        using UINT_TYPE = typename std::conditional<4U == sizeof(VAR_TYPE),
-                                                    uint32_t, uint64_t>::type;
-        Error return_value = Error::NO_ERRORS;
-        for(uint32_t i = 0; (i < count) && (Error::NO_ERRORS == return_value); ++i)
-        {
-          UINT_TYPE bits = 0;
-          memcpy(&bits, reinterpret_cast<const uint8_t*>(data) + (i * sizeof(VAR_TYPE)),
-                 sizeof(VAR_TYPE));
-          return_value = SerializeFixedNoTag(bits, buffer);
-        }
-        return return_value;
-#endif
+        return SerializeFixedArrayNoTag(array_view<const VAR_TYPE>{data, count}, buffer);
       }
       /** @} **/
 
@@ -589,6 +604,45 @@ namespace EmbeddedProto
           counterpart of SerializeFixedArrayNoTag() and is used to batch packed
           repeated fixed-width fields into as few buffer reads as possible.
 
+          \param[out] dest  A view on the values to fill.
+          \param[in] buffer The buffer to read from.
+          \return NO_ERRORS on success, END_OF_BUFFER when too few bytes are available.
+      */
+      template<class VAR_TYPE>
+      static Error DeserializeFixedArrayNoTag(const array_view<VAR_TYPE>& dest,
+                                              ReadBufferInterface& buffer)
+      {
+        static_assert((4U == sizeof(VAR_TYPE)) || (8U == sizeof(VAR_TYPE)),
+                      "DeserializeFixedArrayNoTag only supports 32 and 64 bit values.");
+
+#if EMBEDDED_PROTO_LITTLE_ENDIAN
+        // The little-endian wire layout equals the in-memory representation, so
+        // the whole block can be popped in one call.
+        auto* const raw = reinterpret_cast<uint8_t*>(dest.data);
+        const uint32_t n_bytes = dest.size * static_cast<uint32_t>(sizeof(VAR_TYPE));
+        return buffer.pop(bytes_view{raw, n_bytes}) ? Error::NO_ERRORS : Error::END_OF_BUFFER;
+#else
+        // Big-endian fallback: read every value from its little-endian byte order.
+        using UINT_TYPE = typename std::conditional<4U == sizeof(VAR_TYPE),
+                                                    uint32_t, uint64_t>::type;
+        Error return_value = Error::NO_ERRORS;
+        for(uint32_t i = 0; (i < dest.size) && (Error::NO_ERRORS == return_value); ++i)
+        {
+          UINT_TYPE bits = 0;
+          return_value = DeserializeFixed(buffer, bits);
+          if(Error::NO_ERRORS == return_value)
+          {
+            memcpy(dest.data + i, &bits, sizeof(VAR_TYPE));
+          }
+        }
+        return return_value;
+#endif
+      }
+
+      //! Deserialize a contiguous array of fixed-width scalar values, pointer and count form.
+      /*!
+          Pointer and count form of DeserializeFixedArrayNoTag(const array_view<VAR_TYPE>&, ReadBufferInterface&).
+
           \param[out] dest  Pointer to the first value to fill.
           \param[in] count  The number of values to deserialize.
           \param[in] buffer The buffer to read from.
@@ -598,31 +652,7 @@ namespace EmbeddedProto
       static Error DeserializeFixedArrayNoTag(VAR_TYPE* dest, const uint32_t count,
                                               ReadBufferInterface& buffer)
       {
-        static_assert((4U == sizeof(VAR_TYPE)) || (8U == sizeof(VAR_TYPE)),
-                      "DeserializeFixedArrayNoTag only supports 32 and 64 bit values.");
-
-#if EMBEDDED_PROTO_LITTLE_ENDIAN
-        // The little-endian wire layout equals the in-memory representation, so
-        // the whole block can be popped in one call.
-        auto* const raw = reinterpret_cast<uint8_t*>(dest);
-        const uint32_t n_bytes = count * static_cast<uint32_t>(sizeof(VAR_TYPE));
-        return buffer.pop(bytes_view{raw, n_bytes}) ? Error::NO_ERRORS : Error::END_OF_BUFFER;
-#else
-        // Big-endian fallback: read every value from its little-endian byte order.
-        using UINT_TYPE = typename std::conditional<4U == sizeof(VAR_TYPE),
-                                                    uint32_t, uint64_t>::type;
-        Error return_value = Error::NO_ERRORS;
-        for(uint32_t i = 0; (i < count) && (Error::NO_ERRORS == return_value); ++i)
-        {
-          UINT_TYPE bits = 0;
-          return_value = DeserializeFixed(buffer, bits);
-          if(Error::NO_ERRORS == return_value)
-          {
-            memcpy(dest + i, &bits, sizeof(VAR_TYPE));
-          }
-        }
-        return return_value;
-#endif
+        return DeserializeFixedArrayNoTag(array_view<VAR_TYPE>{dest, count}, buffer);
       }
 
       static Error DeserializeBool(ReadBufferInterface& buffer, bool& value)
