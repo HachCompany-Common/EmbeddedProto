@@ -700,6 +700,67 @@ namespace EmbeddedProto
         return n_bytes;
       }
 
+      //! Decode one varint from a local array instead of a buffer.
+      /*!
+        The counterpart of EncodeVarint(): a caller which peeked a block of bytes out of a
+        buffer decodes the varints in it one after the other and advances the buffer by
+        the bytes they took. The decoding rules are those of DeserializeVarint().
+
+        \param[in] bytes The bytes to decode, the varint starts at the first one.
+        \param[out] value The decoded value, uint32_t or uint64_t, only set when NO_ERRORS is returned.
+        \param[out] n_used The number of bytes the varint took, zero when the array ended before it closed.
+        \return NO_ERRORS, END_OF_BUFFER when the array ends inside the varint, or OVERLONG_VARINT
+                when it is still open after the largest number of bytes the type allows.
+      */
+      template<class UINT_TYPE>
+      static Error DecodeVarint(const const_bytes_view& bytes, UINT_TYPE& value, uint32_t& n_used)
+      {
+        static_assert(std::is_same<UINT_TYPE, uint32_t>::value || 
+                      std::is_same<UINT_TYPE, uint64_t>::value, 
+                      "Wrong type passed to DecodeVarint.");
+
+        // Calculate how many bytes there are in a varint 128 base encoded number. This should 
+        // yield 5 for a 32bit number and 10 for a 64bit number.
+        constexpr auto N_DIGITS = std::numeric_limits<UINT_TYPE>::digits;
+        constexpr auto N_BITS_FLOAT = static_cast<float>(VARINT_SHIFT_N_BITS);
+        constexpr auto DIV_RESULT = N_DIGITS / N_BITS_FLOAT;
+        constexpr auto DIV_CEIL = constexpr_ceil(DIV_RESULT);
+        constexpr auto N_BYTES_IN_VARINT = static_cast<uint32_t>(DIV_CEIL);
+
+        const uint32_t n_available = EmbeddedProto::min(N_BYTES_IN_VARINT, bytes.size);
+        UINT_TYPE temp_value = 0;
+        uint8_t byte = VARINT_MSB_BYTE;
+        uint32_t i = 0;
+        while((0U != (byte & VARINT_MSB_BYTE)) && (i < n_available))
+        {
+          byte = bytes.data[i];
+          temp_value |= static_cast<UINT_TYPE>(byte & (~VARINT_MSB_BYTE)) << (i * VARINT_SHIFT_N_BITS);
+          ++i;
+        }
+
+        Error return_value = Error::END_OF_BUFFER;
+        n_used = 0U;
+        if(0U == (byte & VARINT_MSB_BYTE))
+        {
+          // The closing byte was found.
+          value = temp_value;
+          n_used = i;
+          return_value = Error::NO_ERRORS;
+        }
+        else if(N_BYTES_IN_VARINT == i)
+        {
+          // Still open after the largest number of bytes the type allows, the bytes are used up.
+          n_used = i;
+          return_value = Error::OVERLONG_VARINT;
+        }
+        else
+        {
+          // The array ended before the varint closed.
+        }
+
+        return return_value;
+      }
+
       //! This function converts a given value unsigned integer to a varint formatted data buffer.
       /*!
         \param[in] value  The data to be serialized, uint32_t or uint64_t.
