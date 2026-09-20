@@ -27,6 +27,7 @@
 #include <ReadBufferMock.h>
 #include <WriteBufferMock.h>
 #include <EmbeddedProto/ReadBufferFixedSize.h>
+#include <EmbeddedProto/ReadBufferSection.h>
 #include <EmbeddedProto/WriteBufferFixedSize.h>
 #include <EmbeddedProto/MessageState.h>
 
@@ -91,6 +92,58 @@ TEST(SimpleTypes, serialize_fixed_is_one_block_push)
   EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(buffer));
 }
 #endif // EMBEDDED_PROTO_LITTLE_ENDIAN
+
+// A fixed width value is read out of the buffer with one block pop, never a byte at
+// a time, for both the 32 and the 64 bit variant.
+TEST(SimpleTypes, deserialize_fixed_is_one_block_pop)
+{
+  const uint8_t bytes32[4] = {0x44, 0x33, 0x22, 0x11};
+  const uint8_t bytes64[8] = {0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11};
+
+  Mocks::ReadBufferMock buffer;
+  EXPECT_CALL(buffer, peek(_, _)).Times(0);
+  EXPECT_CALL(buffer, peek(::testing::An<uint8_t&>())).Times(0);
+  EXPECT_CALL(buffer, pop(::testing::An<uint8_t&>())).Times(0);
+  EXPECT_CALL(buffer, advance(_)).Times(0);
+  EXPECT_CALL(buffer, pop(Mocks::ViewOfSize(4U))).Times(1).WillOnce(
+      [&](const ::EmbeddedProto::bytes_view& dst){ memcpy(dst.data, bytes32, dst.size); return true; });
+  EXPECT_CALL(buffer, pop(Mocks::ViewOfSize(8U))).Times(1).WillOnce(
+      [&](const ::EmbeddedProto::bytes_view& dst){ memcpy(dst.data, bytes64, dst.size); return true; });
+
+  uint32_t value32 = 0;
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, ::EmbeddedProto::WireFormatter::DeserializeFixed(buffer, value32));
+  EXPECT_EQ(0x11223344U, value32);
+
+  uint64_t value64 = 0;
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, ::EmbeddedProto::WireFormatter::DeserializeFixed(buffer, value64));
+  EXPECT_EQ(0x1122334455667788ULL, value64);
+}
+
+// A fixed width value cut by the end of the buffer, or of a section in it, consumes
+// nothing so a retry with more data starts at the same byte.
+TEST(SimpleTypes, deserialize_fixed_cut_by_buffer_end_consumes_nothing)
+{
+  ::EmbeddedProto::ReadBufferFixedSize<8> buffer({0x01, 0x02, 0x03});
+  uint32_t value32 = 0;
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, ::EmbeddedProto::WireFormatter::DeserializeFixed(buffer, value32));
+  EXPECT_EQ(3U, buffer.get_size());
+  EXPECT_EQ(0U, value32);
+
+  ::EmbeddedProto::ReadBufferFixedSize<8> parent({0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08});
+  ::EmbeddedProto::ReadBufferSection section(parent, 7);
+  uint64_t value64 = 0;
+  EXPECT_EQ(::EmbeddedProto::Error::END_OF_BUFFER, ::EmbeddedProto::WireFormatter::DeserializeFixed(section, value64));
+  EXPECT_EQ(7U, section.get_size());
+  EXPECT_EQ(8U, parent.get_size());
+  EXPECT_EQ(0U, value64);
+
+  // The value which does fit is read as a whole.
+  ::EmbeddedProto::ReadBufferSection whole(parent, 8);
+  EXPECT_EQ(::EmbeddedProto::Error::NO_ERRORS, ::EmbeddedProto::WireFormatter::DeserializeFixed(whole, value64));
+  EXPECT_EQ(0x0807060504030201ULL, value64);
+  EXPECT_EQ(0U, whole.get_size());
+  EXPECT_EQ(0U, parent.get_size());
+}
 
 TEST(SimpleTypes, serialize_one) 
 {
