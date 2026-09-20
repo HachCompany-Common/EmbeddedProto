@@ -296,6 +296,25 @@ TEST(NestedMessage, deserialize_one)
   EXPECT_EQ(1, msg.get_v());
 }
 
+TEST(NestedMessage, deserialize_end_group_inside_length_delimited_nested)
+{
+  // An END_GROUP tag only closes group framing. Inside a length-delimited nested message it
+  // is malformed input. It used to end the nested message early, after which the rest of the
+  // section was read as fields of the parent message.
+  ::demo::space::message_b<SIZE_MSG_A> msg;
+
+  ::EmbeddedProto::ReadBufferFixedSize<8> buffer({
+      0x12, 0x03,       // nested_a tag + size (3)
+      0x0C,             // END_GROUP tag
+      0x18, 0x02,       // z, part of the section
+      0x18, 0x01        // parent v
+    });
+
+  EXPECT_EQ(::EmbeddedProto::Error::INVALID_WIRETYPE, msg.deserialize(buffer));
+  EXPECT_EQ(0, msg.get_nested_a().get_z());
+  EXPECT_EQ(0, msg.get_v());
+}
+
 #ifdef PARTIAL_SERIALIZATION_ENABLED
 
 TEST(NestedMessage, deserialize_one_partial_clean_tag)
