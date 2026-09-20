@@ -57,6 +57,21 @@ TEST(MessageSizeCalculator, push_n)
   EXPECT_EQ(3, msc.get_size());
 }
 
+// The deprecated pointer and length form of the base class forwards to the view override of
+// this class through virtual dispatch, so the size is counted the same way.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+TEST(MessageSizeCalculator, push_pointer_and_length_forwards_to_the_view)
+{
+  ::EmbeddedProto::MessageSizeCalculator msc;
+
+  static constexpr uint8_t SIZE = 3;
+  uint8_t bytes[SIZE] = {1, 2, 3};
+  EXPECT_TRUE(msc.push(bytes, SIZE));
+  EXPECT_EQ(3, msc.get_size());
+}
+#pragma GCC diagnostic pop
+
 TEST(MessageSizeCalculator, unlimited_size) 
 {
   ::EmbeddedProto::MessageSizeCalculator msc;
