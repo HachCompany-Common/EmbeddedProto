@@ -44,7 +44,7 @@ class MockBytesStorage final : public ::EmbeddedProto::FieldBytes<MAX_LENGTH>
       ++instance_count;
     }
 
-    ~MockBytesStorage() override = default;
+    ~MockBytesStorage() = default;
 
     //! The number of MockBytesStorage objects currently alive. Used by the tests.
     static uint32_t instance_count;

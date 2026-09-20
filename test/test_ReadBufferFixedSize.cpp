@@ -130,6 +130,36 @@ namespace test_EmbeddedAMS_ReadBufferFixedSize
   // index by length. It is all-or-nothing: a request larger than the number of
   // bytes available copies nothing and leaves the read index untouched, matching
   // the pop(byte) / advance(n) semantics.
+  // The batched peek(bytes_view) copies a block out and leaves the read index
+  // where it was, so the same bytes are still there for pop() or advance().
+  TEST(ReadBufferFixedSize, peek_block)
+  {
+    constexpr uint32_t BUFFER_SIZE = 5;
+    EmbeddedProto::ReadBufferFixedSize<BUFFER_SIZE> buffer;
+    constexpr std::array<uint8_t, BUFFER_SIZE> data = { 10, 11, 12, 13, 14 };
+
+    memcpy(buffer.get_data(), data.data(), BUFFER_SIZE);
+    buffer.set_bytes_written(BUFFER_SIZE);
+    EXPECT_TRUE(buffer.advance(1));
+
+    std::array<uint8_t, 3> dest = { 0, 0, 0 };
+    EXPECT_TRUE(buffer.peek(EmbeddedProto::bytes_view{dest.data(), 3}));
+    EXPECT_EQ(11, dest[0]);
+    EXPECT_EQ(12, dest[1]);
+    EXPECT_EQ(13, dest[2]);
+    EXPECT_EQ(4, buffer.get_size());
+
+    // More than remains is refused and copies nothing.
+    std::array<uint8_t, 5> dest2 = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+    EXPECT_FALSE(buffer.peek(EmbeddedProto::bytes_view{dest2.data(), 5}));
+    EXPECT_EQ(0xFF, dest2[0]);
+
+    // The bytes are still there to be popped.
+    uint8_t byte = 0;
+    EXPECT_TRUE(buffer.pop(byte));
+    EXPECT_EQ(11, byte);
+  }
+
   TEST(ReadBufferFixedSize, pop_block)
   {
     constexpr uint32_t BUFFER_SIZE = 5;

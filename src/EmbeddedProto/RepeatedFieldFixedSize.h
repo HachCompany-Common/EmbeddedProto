@@ -56,7 +56,7 @@ namespace EmbeddedProto
     public:
 
       RepeatedFieldFixedSize() = default;
-      ~RepeatedFieldFixedSize() override = default;
+      ~RepeatedFieldFixedSize() = default;
 
       RepeatedFieldFixedSize(const RepeatedFieldFixedSize<DATA_TYPE, MAX_LENGTH>& rhs) :
         current_length_(rhs.get_length()),

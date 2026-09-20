@@ -35,11 +35,12 @@ MODE_NAME="full"
 EXTRA_DEFINES=""
 
 usage() {
-  echo "Usage: $0 [MODE] [nullterm]"
+  echo "Usage: $0 [MODE] [nullterm] [virtualdtor]"
   echo "  MODE: 'full' (default) or 'partial'"
   echo "        Full mode: Traditional serialization (complete in one call)"
   echo "        Partial mode: Chunked serialization for constrained environments"
   echo "  nullterm: also define NULL_TERMINATED_STRINGS, reserving a null terminator per string"
+  echo "  virtualdtor: also define VIRTUAL_DESTRUCTORS_ENABLED, public virtual interface destructors"
   echo ""
   echo "Examples:"
   echo "  $0                    # Build with full serialization (default)"
@@ -59,7 +60,10 @@ for ARG in "$@"; do
       MODE_NAME="partial"
       ;;
     nullterm)
-      EXTRA_DEFINES="-DNULL_TERMINATED_STRINGS"
+      EXTRA_DEFINES="${EXTRA_DEFINES} -DNULL_TERMINATED_STRINGS"
+      ;;
+    virtualdtor)
+      EXTRA_DEFINES="${EXTRA_DEFINES} -DVIRTUAL_DESTRUCTORS_ENABLED"
       ;;
     *)
       usage

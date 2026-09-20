@@ -41,7 +41,16 @@ namespace EmbeddedProto
     public:
 
       WriteBufferInterface() = default;
+
+#ifdef VIRTUAL_DESTRUCTORS_ENABLED
       virtual ~WriteBufferInterface() = default;
+#else
+    protected:
+      //! Protected and non-virtual by default, see VIRTUAL_DESTRUCTORS_ENABLED in Defines.h.
+      ~WriteBufferInterface() = default;
+
+    public:
+#endif
 
       //! Delete all data in the buffer.
       virtual void clear() = 0;

@@ -453,6 +453,41 @@ TEST(OneofField, PartialDeserialize_ScalarOneof_SplitTagAndData)
   EXPECT_EQ(2, msg.get_y());
 }
 
+// Serializing in parts must emit the same bytes as serialize(), whichever of the two
+// oneofs has a member set. An unset oneof must neither end the message early nor
+// overwrite the member of the other.
+static void expect_partial_matches_full(const two_oneofs& msg)
+{
+  ::EmbeddedProto::WriteBufferFixedSize<16> full;
+  ASSERT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize(full));
+
+  ::EmbeddedProto::WriteBufferFixedSize<16> partial;
+  two_oneofs::StateStack state;
+  ASSERT_EQ(::EmbeddedProto::Error::NO_ERRORS, msg.serialize_partial(partial, state.root()));
+
+  ASSERT_EQ(full.get_size(), partial.get_size());
+  EXPECT_EQ(0, memcmp(full.get_data(), partial.get_data(), full.get_size()));
+}
+
+TEST(OneofField, PartialSerialize_TwoOneofs)
+{
+  two_oneofs none;
+  expect_partial_matches_full(none);
+
+  two_oneofs only_first;
+  only_first.set_b(1);
+  expect_partial_matches_full(only_first);
+
+  two_oneofs only_second;
+  only_second.set_d(2);
+  expect_partial_matches_full(only_second);
+
+  two_oneofs both;
+  both.set_a(3);
+  both.set_c(4);
+  expect_partial_matches_full(both);
+}
+
 TEST(OneofField, PartialDeserialize_OverwriteLastFieldWins_AcrossChunks)
 {
   message_oneof msg;

@@ -38,7 +38,7 @@ class MockRepeatedFieldStorage final : public ::EmbeddedProto::RepeatedField<DAT
 {
   public:
     MockRepeatedFieldStorage() = default;
-    ~MockRepeatedFieldStorage() override = default;
+    ~MockRepeatedFieldStorage() = default;
 
     uint32_t get_length() const override { return current_length_; }
     uint32_t get_max_length() const override { return MAX_LENGTH; }

@@ -68,7 +68,16 @@ namespace EmbeddedProto
 
 
       Field() = default;
+
+#ifdef VIRTUAL_DESTRUCTORS_ENABLED
       virtual ~Field() = default;
+#else
+    protected:
+      //! Protected and non-virtual by default, see VIRTUAL_DESTRUCTORS_ENABLED in Defines.h.
+      ~Field() = default;
+
+    public:
+#endif
 
       virtual Error serialize(WriteBufferInterface& buffer) const = 0;
 

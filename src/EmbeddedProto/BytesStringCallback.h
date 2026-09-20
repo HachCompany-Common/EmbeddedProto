@@ -87,7 +87,7 @@ namespace EmbeddedProto
       using ChunkCallback = Functional<uint32_t(VIEW)>;
 
       BytesStringCallback() = default;
-      ~BytesStringCallback() override = default;
+      ~BytesStringCallback() = default;
 
       // --- Binding (reference-taking, no ownership) --------------------------
 
@@ -420,12 +420,8 @@ namespace EmbeddedProto
       Error offer_to_callback(ReadBufferInterface& buffer, uint32_t& remaining, const uint32_t offered)
       {
         Error return_value = Error::NO_ERRORS;
-        for(uint32_t i = 0U; i < offered; ++i)
-        {
-          uint8_t byte = 0U;
-          static_cast<void>(buffer.peek(i, byte));
-          window_.data[i] = static_cast<DATA_TYPE>(byte);
-        }
+        // The bytes stay in the buffer until the callback says how many it accepted.
+        static_cast<void>(buffer.peek(bytes_view{window_bytes(), offered}));
 
         uint32_t accepted = 0U;
         static_cast<void>(on_deserialize_chunk_.invoke(accepted, VIEW{window_.data, offered}));
@@ -443,6 +439,13 @@ namespace EmbeddedProto
           }
         }
         return return_value;
+      }
+
+      //! The window as writable bytes, the unit the read buffer fills.
+      uint8_t* window_bytes()
+      {
+        void* void_pointer = static_cast<void*>(window_.data);
+        return static_cast<uint8_t*>(void_pointer);
       }
 
       //! The window as bytes, the unit the write buffer takes.
