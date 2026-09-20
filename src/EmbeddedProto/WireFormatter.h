@@ -513,36 +513,19 @@ namespace EmbeddedProto
         static_assert(std::is_same<TYPE, uint32_t>::value || 
                       std::is_same<TYPE, uint64_t>::value, "Wrong type passed to DeserializeFixed.");
 
-        // Deserialize the data little endian to the buffer.
-
-        TYPE temp_value = 0;
-        bool result(true);
-        uint8_t byte = 0;
-        uint8_t n_bytes_ahead = 0;
-        uint8_t i = 0;
-
-        for(i = 0; (i < std::numeric_limits<TYPE>::digits) && result; 
-            i += std::numeric_limits<uint8_t>::digits)  
+        // Pop the little endian wire bytes as one block. The pop is all-or-nothing, a
+        // buffer holding only part of the value is left untouched.
+        std::array<uint8_t, sizeof(TYPE)> bytes = {0};
+        Error return_value = Error::END_OF_BUFFER;
+        if(buffer.pop(bytes_view{bytes.data(), static_cast<uint32_t>(bytes.size())}))
         {
-          // Caluclate which byte to peek a head from the read buffer based on the number of bits.
-          n_bytes_ahead = i / 8;
-          result = buffer.peek(n_bytes_ahead, byte);
-          if(result)
+          TYPE temp_value = 0;
+          for(uint32_t i = 0U; i < static_cast<uint32_t>(bytes.size()); ++i)
           {
-            temp_value |= (static_cast<TYPE>(byte) << i);
+            temp_value |= (static_cast<TYPE>(bytes[i]) << (i * 8U));
           }
-        }
-
-        Error return_value = Error::NO_ERRORS;
-        if(result)
-        {
           value = temp_value;
-          // Advance the buffer to the next byte to be proccesd
-          buffer.advance(n_bytes_ahead+1);
-        }
-        else 
-        {
-          return_value = Error::END_OF_BUFFER;
+          return_value = Error::NO_ERRORS;
         }
 
         return return_value;
