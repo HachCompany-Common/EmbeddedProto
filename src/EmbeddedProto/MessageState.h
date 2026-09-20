@@ -179,12 +179,13 @@ namespace EmbeddedProto
       }
       
       //! Reset all states to initial values.
+      /*!
+          The root state resets every state below it through the child chain, so one call
+          covers the whole stack.
+      */
       void reset() 
       {
-        for(uint32_t i = 0; i < DEPTH; ++i)
-        {
-          states_[i].reset();
-        }
+        states_[0].reset();
       }
       
       //! Get the maximum depth this stack can handle.
