@@ -84,7 +84,13 @@ namespace EmbeddedProto
 #endif
 
 
-  //! An simple struct holding both a pointer to an array and the size of that array.
+  //! A simple struct holding both a pointer to an array and the size of that array.
+  /*!
+      The view keeps the pointer and its bound together, which is what the array
+      interfaces of the library take instead of a separate pointer and length. Use a
+      const element type, for example array_view<const uint8_t>, to view an array which
+      is only read.
+  */
   template<class T>
   struct array_view {
     T* data; //!< A pointer to the start of an array.
@@ -93,6 +99,7 @@ namespace EmbeddedProto
 
   using string_view = array_view<char>;
   using bytes_view = array_view<uint8_t>;
+  using const_bytes_view = array_view<const uint8_t>; //!< A view on bytes which are only read.
 
   //! Simple max function as constexpr
   constexpr uint32_t max(const uint32_t a, const uint32_t b)
