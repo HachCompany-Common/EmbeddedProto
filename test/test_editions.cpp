@@ -685,8 +685,8 @@ TEST(EditionsDelimitedPartial, unknown_group_is_skipped)
   for(uint32_t split = 0; split <= bytes.size(); ++split)
   {
     GroupSkipMessage msg;
-    // The flat message has a depth of one; skipping the group needs one more.
-    ::EmbeddedProto::MessageStateStack<2> state;
+    // The unknown group is skipped within the state of the flat message itself.
+    GroupSkipMessage::StateStack state;
     deserialize_partial_split(bytes.data(), bytes.size(), split, msg, state);
     EXPECT_EQ(7, msg.get_before()) << "split " << split;
     EXPECT_EQ(9, msg.get_after()) << "split " << split;
@@ -709,21 +709,33 @@ TEST(EditionsDelimitedPartial, nested_unknown_groups_skipped)
   for(uint32_t split = 0; split <= bytes.size(); ++split)
   {
     GroupSkipMessage msg;
-    // One level for the message and one for each nested group.
-    ::EmbeddedProto::MessageStateStack<3> state;
+    // Nested groups inside the unknown group take no state level either.
+    GroupSkipMessage::StateStack state;
     deserialize_partial_split(bytes.data(), bytes.size(), split, msg, state);
     EXPECT_EQ(7, msg.get_before()) << "split " << split;
     EXPECT_EQ(9, msg.get_after()) << "split " << split;
   }
 }
 
-// Skipping an unknown group deeper than the state stack reports NESTING_TOO_DEEP.
-TEST(EditionsDelimitedPartial, unknown_group_nesting_too_deep)
+// An unknown group inside a length-delimited nested message is skipped with the
+// default state stack of the parent, whichever byte the buffer boundary falls on.
+TEST(EditionsDelimitedPartial, unknown_group_inside_nested_message)
 {
-  ::EmbeddedProto::ReadBufferFixedSize<8> buffer({0x1B, 0x08, 0x96, 0x01, 0x1C});
-  GroupSkipMessage msg;
-  GroupSkipMessage::StateStack state; // Depth one: no child state for the group.
-  EXPECT_EQ(::EmbeddedProto::Error::NESTING_TOO_DEEP, msg.deserialize_partial(buffer, state.root()));
+  // nested_a(2) { unknown group field 5 { field 1 = 1 }, z(3) = 5 }, v(3) = 7.
+  const std::array<uint8_t, 10> bytes = {
+      0x12, 0x06,             // nested_a, 6 bytes
+        0x2B, 0x08, 0x01, 0x2C, // unknown group (field 5)
+        0x18, 0x0A,           // z = 5 (sint64 zigzag)
+      0x18, 0x07};            // v = 7
+
+  for(uint32_t split = 0; split <= bytes.size(); ++split)
+  {
+    demo::space::message_b<3> msg;
+    demo::space::message_b<3>::StateStack state;
+    deserialize_partial_split(bytes.data(), bytes.size(), split, msg, state);
+    EXPECT_EQ(5, msg.get_nested_a().get_z()) << "split " << split;
+    EXPECT_EQ(7, msg.get_v()) << "split " << split;
+  }
 }
 
 // PROTO-322: an unknown group in front of a known field stalled partial
