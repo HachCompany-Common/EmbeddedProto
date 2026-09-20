@@ -143,25 +143,35 @@ namespace EmbeddedProto
           return this->set(rhs.get_const(), rhs.get_length());
         }
 
-        //! Assign data in the given array to this object.
+        //! Assign the data in the given view to this object.
         /*!
-            \param[in] data A pointer to an array with data.
-            \param[in] length The number of bytes/chars in the data array.
-            \return Will return ARRAY_FULL when length exceeds the number of bytes/chars in this object.
-        */        
-        Error set(const DATA_TYPE* data, const uint32_t length)
+            \param[in] data A view on an array with data, data.size bytes/chars are copied.
+            \return Will return ARRAY_FULL when data.size exceeds the number of bytes/chars in this object.
+        */
+        Error set(const array_view<const DATA_TYPE>& data)
         {
           Error return_value = Error::NO_ERRORS;
-          if(MAX_LENGTH >= length)
+          if(MAX_LENGTH >= data.size)
           {
-            current_length_ = length;
-            memcpy(data_.data(), data, length);
+            current_length_ = data.size;
+            memcpy(data_.data(), data.data, data.size);
           }
           else
           {
             return_value = Error::ARRAY_FULL;
           }
           return return_value;
+        }
+
+        //! Assign data in the given array to this object, pointer and length form of set(const array_view<const DATA_TYPE>&).
+        /*!
+            \param[in] data A pointer to an array with data.
+            \param[in] length The number of bytes/chars in the data array.
+            \return Will return ARRAY_FULL when length exceeds the number of bytes/chars in this object.
+        */
+        Error set(const DATA_TYPE* data, const uint32_t length)
+        {
+          return set(array_view<const DATA_TYPE>{data, length});
         }
 
         //! Compare the data held by this object with that of another string or bytes field.

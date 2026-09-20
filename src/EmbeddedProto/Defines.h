@@ -99,6 +99,7 @@ namespace EmbeddedProto
 
   using string_view = array_view<char>;
   using bytes_view = array_view<uint8_t>;
+  using const_string_view = array_view<const char>; //!< A view on characters which are only read.
   using const_bytes_view = array_view<const uint8_t>; //!< A view on bytes which are only read.
 
   //! Simple max function as constexpr
