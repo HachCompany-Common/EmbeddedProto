@@ -27,7 +27,8 @@
 #
 #   --stage    branch release/X.Y.Z off develop, set the version files to X.Y.Z and push. From then on
 #              every push of that branch to the github remote publishes a beta X.Y.ZbN to PyPI.
-#   --release  merge release/X.Y.Z into master and develop, tag master with X.Y.Z and push. The tag
+#   --release  merge release/X.Y.Z into master and develop, tag master with X.Y.Z, move the latest
+#              tag to it and push. The tag
 #              publishes the final release to PyPI.
 
 set -eu
@@ -119,6 +120,8 @@ perform_release() {
   git pull --ff-only origin master
   git merge --no-ff "$BRANCH" -m "Merge release $VERSION into master"
   git tag -a "$VERSION" master -m "Release $VERSION"
+  # The latest tag always marks the newest release on master.
+  git tag -f latest master
 
   git checkout develop
   git pull --ff-only origin develop
@@ -129,6 +132,7 @@ perform_release() {
     git push "$remote" develop
     git push "$remote" master
     git push "$remote" "$VERSION"
+    git push --force "$remote" latest
   done
 
   # Clean up the release branch.
