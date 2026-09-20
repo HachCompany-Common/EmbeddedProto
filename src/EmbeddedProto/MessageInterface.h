@@ -343,6 +343,18 @@ class MessageInterface : public ::EmbeddedProto::Field
           // which is the expected clean end here and not a truncated message.
           return_value = Error::NO_ERRORS;
         }
+        else if((Error::NO_ERRORS == return_value) && (0U != bufferSection.get_size()))
+        {
+          // The nested deserialize only stops before the end of its section after
+          // consuming an END_GROUP tag. That tag closes group framing and is malformed
+          // inside a length-delimited field. Accepting it would leave the rest of the
+          // section to be read as fields of this message.
+          return_value = Error::INVALID_WIRETYPE;
+        }
+        else
+        {
+          // Any other result is passed on as is.
+        }
       }
     }
     return return_value;
