@@ -35,11 +35,26 @@ namespace Mocks
   {
     public:
 
+      ReadBufferMock()
+      {
+        // Forward a block peek byte by byte to peek(n, byte) unless a test expects the
+        // block call itself. Tests that list the expected bytes keep working this way.
+        ON_CALL(*this, peek(::testing::An<const EmbeddedProto::bytes_view&>()))
+            .WillByDefault(::testing::Invoke(this, &ReadBufferMock::peek_each_byte));
+      }
+
       MOCK_CONST_METHOD0(get_size, uint32_t());
       MOCK_CONST_METHOD0(get_max_size, uint32_t());
       
       MOCK_CONST_METHOD1(peek, bool(uint8_t&));
       MOCK_CONST_METHOD2(peek, bool(const uint32_t, uint8_t&));
+      MOCK_CONST_METHOD1(peek, bool(const EmbeddedProto::bytes_view&));
+
+      //! The default block peek of the interface, one peek(n, byte) per byte.
+      bool peek_each_byte(const EmbeddedProto::bytes_view& dest) const
+      {
+        return ReadBufferInterface::peek(dest);
+      }
       
       MOCK_METHOD0(advance, bool());
       MOCK_METHOD1(advance, bool(uint32_t));
